@@ -81,7 +81,7 @@ library UniswapV2LiquidityMathLibrary {
         uint256 totalSupply,
         uint256 liquidityAmount,
         bool feeOn,
-    uint feeAmount,
+        uint ownerFeeShare,
         uint kLast
     ) internal pure returns (uint256 tokenAAmount, uint256 tokenBAmount) {
         if (feeOn && kLast > 0) {
@@ -90,7 +90,8 @@ library UniswapV2LiquidityMathLibrary {
             if (rootK > rootKLast) {
                 uint numerator1 = totalSupply;
                 uint numerator2 = rootK.sub(rootKLast);
-                uint denominator = rootK.mul(5).add(rootKLast);
+                uint d = (100000 / ownerFeeShare).sub(1);
+                uint denominator = rootK.mul(d).add(rootKLast);
                 uint feeLiquidity = FullMath.mulDiv(numerator1, numerator2, denominator);
                 totalSupply = totalSupply.add(feeLiquidity);
             }
@@ -110,10 +111,10 @@ library UniswapV2LiquidityMathLibrary {
         (uint256 reservesA, uint256 reservesB) = UniswapV2Library.getReserves(factory, tokenA, tokenB);
         IExcaliburV2Pair pair = IExcaliburV2Pair(UniswapV2Library.pairFor(factory, tokenA, tokenB));
         bool feeOn = IExcaliburV2Factory(factory).feeTo() != address(0);
-        bool feeAmount = IExcaliburV2Factory(factory).feeAmount();
+        uint ownerFeeShare = IExcaliburV2Factory(factory).ownerFeeShare();
         uint kLast = feeOn ? pair.kLast() : 0;
         uint totalSupply = pair.totalSupply();
-        return computeLiquidityValue(reservesA, reservesB, totalSupply, liquidityAmount, feeOn, feeAmount, kLast);
+        return computeLiquidityValue(reservesA, reservesB, totalSupply, liquidityAmount, feeOn, ownerFeeShare, kLast);
     }
 
     // given two tokens, tokenA and tokenB, and their "true price", i.e. the observed ratio of value of token A to token B,
@@ -133,12 +134,13 @@ library UniswapV2LiquidityMathLibrary {
         IExcaliburV2Pair pair = IExcaliburV2Pair(UniswapV2Library.pairFor(factory, tokenA, tokenB));
         uint kLast = feeOn ? pair.kLast() : 0;
         uint totalSupply = pair.totalSupply();
+        uint ownerFeeShare = IExcaliburV2Factory(factory).ownerFeeShare();
 
         // this also checks that totalSupply > 0
         require(totalSupply >= liquidityAmount && liquidityAmount > 0, 'ComputeLiquidityValue: LIQUIDITY_AMOUNT');
 
         (uint reservesA, uint reservesB) = getReservesAfterArbitrage(factory, tokenA, tokenB, truePriceTokenA, truePriceTokenB);
 
-        return computeLiquidityValue(reservesA, reservesB, totalSupply, liquidityAmount, feeOn, kLast);
+        return computeLiquidityValue(reservesA, reservesB, totalSupply, liquidityAmount, feeOn, ownerFeeShare, kLast);
     }
 }

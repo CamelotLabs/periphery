@@ -9,15 +9,15 @@ import '../libraries/UniswapV2Library.sol';
 
 import 'excalibur-core/contracts/interfaces/IExcaliburV2Pair.sol';
 import '../interfaces/IERC20.sol';
-import '../interfaces/IUniswapV2Router01.sol';
+import '../interfaces/IExcaliburRouter.sol';
 
 contract ExampleSwapToPrice {
     using SafeMath for uint256;
 
-    IUniswapV2Router01 public immutable router;
+    IExcaliburRouter public immutable router;
     address public immutable factory;
 
-    constructor(address factory_, IUniswapV2Router01 router_) public {
+    constructor(address factory_, IExcaliburRouter router_) public {
         factory = factory_;
         router = router_;
     }
@@ -67,11 +67,13 @@ contract ExampleSwapToPrice {
         path[0] = tokenIn;
         path[1] = tokenOut;
 
-        router.swapExactTokensForTokens(
+        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
             amountIn,
             0, // amountOutMin: we can skip computing this number because the math is tested
             path,
             to,
+            address(0),
+            false,
             deadline
         );
     }

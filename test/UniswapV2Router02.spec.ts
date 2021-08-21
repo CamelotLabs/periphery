@@ -2,7 +2,7 @@ import chai, { expect } from 'chai'
 import { solidity, MockProvider, createFixtureLoader, deployContract } from 'ethereum-waffle'
 import { Contract } from 'ethers'
 import { BigNumber, bigNumberify } from 'ethers/utils'
-import { MaxUint256 } from 'ethers/constants'
+import { AddressZero, MaxUint256 } from 'ethers/constants'
 import IExcaliburV2Pair from 'excalibur-core/build_test/IExcaliburV2Pair.json'
 
 import { v2Fixture } from './shared/fixtures'
@@ -10,7 +10,7 @@ import { expandTo18Decimals, getApprovalDigest, MINIMUM_LIQUIDITY } from './shar
 
 import DeflatingERC20 from '../build/DeflatingERC20.json'
 import { ecsign } from 'ethereumjs-util'
-import {BigNumberish} from "ethers/utils/bignumber";
+import { BigNumberish } from 'ethers/utils/bignumber'
 
 chai.use(solidity)
 
@@ -18,7 +18,7 @@ const overrides = {
   gasLimit: 9999999
 }
 
-describe('UniswapV2Router02', () => {
+describe('ExcaliburRouter', () => {
   const provider = new MockProvider({
     hardfork: 'istanbul',
     mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
@@ -30,13 +30,13 @@ describe('UniswapV2Router02', () => {
   let token0: Contract
   let token1: Contract
   let router: Contract
-  let feeAmount : BigNumberish
+  let feeAmount: BigNumberish
   beforeEach(async function() {
     const fixture = await loadFixture(v2Fixture)
     token0 = fixture.token0
     token1 = fixture.token1
     router = fixture.router02
-    feeAmount = await fixture.pair.feeAmount();
+    feeAmount = await fixture.pair.feeAmount()
   })
 
   it('quote', async () => {
@@ -54,23 +54,27 @@ describe('UniswapV2Router02', () => {
   })
 
   it('getAmountOut', async () => {
-    expect(await router.getAmountOut(bigNumberify(2), bigNumberify(100), bigNumberify(100), feeAmount)).to.eq(bigNumberify(1))
-    await expect(router.getAmountOut(bigNumberify(0), bigNumberify(100), bigNumberify(100), feeAmount)).to.be.revertedWith(
-      'UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT'
+    expect(await router.getAmountOut(bigNumberify(2), bigNumberify(100), bigNumberify(100), feeAmount)).to.eq(
+      bigNumberify(1)
     )
-    await expect(router.getAmountOut(bigNumberify(2), bigNumberify(0), bigNumberify(100), feeAmount)).to.be.revertedWith(
-      'UniswapV2Library: INSUFFICIENT_LIQUIDITY'
-    )
-    await expect(router.getAmountOut(bigNumberify(2), bigNumberify(100), bigNumberify(0), feeAmount)).to.be.revertedWith(
-      'UniswapV2Library: INSUFFICIENT_LIQUIDITY'
-    )
+    await expect(
+      router.getAmountOut(bigNumberify(0), bigNumberify(100), bigNumberify(100), feeAmount)
+    ).to.be.revertedWith('UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT')
+    await expect(
+      router.getAmountOut(bigNumberify(2), bigNumberify(0), bigNumberify(100), feeAmount)
+    ).to.be.revertedWith('UniswapV2Library: INSUFFICIENT_LIQUIDITY')
+    await expect(
+      router.getAmountOut(bigNumberify(2), bigNumberify(100), bigNumberify(0), feeAmount)
+    ).to.be.revertedWith('UniswapV2Library: INSUFFICIENT_LIQUIDITY')
   })
 
   it('getAmountIn', async () => {
-    expect(await router.getAmountIn(bigNumberify(1), bigNumberify(100), bigNumberify(100), feeAmount)).to.eq(bigNumberify(2))
-    await expect(router.getAmountIn(bigNumberify(0), bigNumberify(100), bigNumberify(100), feeAmount)).to.be.revertedWith(
-      'UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT'
+    expect(await router.getAmountIn(bigNumberify(1), bigNumberify(100), bigNumberify(100), feeAmount)).to.eq(
+      bigNumberify(2)
     )
+    await expect(
+      router.getAmountIn(bigNumberify(0), bigNumberify(100), bigNumberify(100), feeAmount)
+    ).to.be.revertedWith('UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT')
     await expect(router.getAmountIn(bigNumberify(1), bigNumberify(0), bigNumberify(100), feeAmount)).to.be.revertedWith(
       'UniswapV2Library: INSUFFICIENT_LIQUIDITY'
     )
@@ -94,11 +98,11 @@ describe('UniswapV2Router02', () => {
       overrides
     )
 
-    await expect(router.getAmountsOut(bigNumberify(2), [token0.address])).to.be.revertedWith(
+    await expect(router.getAmountsOut(bigNumberify(2), [token0.address], false)).to.be.revertedWith(
       'UniswapV2Library: INVALID_PATH'
     )
     const path = [token0.address, token1.address]
-    expect(await router.getAmountsOut(bigNumberify(2), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
+    expect(await router.getAmountsOut(bigNumberify(2), path, false)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
   })
 
   it('getAmountsIn', async () => {
@@ -116,11 +120,11 @@ describe('UniswapV2Router02', () => {
       overrides
     )
 
-    await expect(router.getAmountsIn(bigNumberify(1), [token0.address])).to.be.revertedWith(
+    await expect(router.getAmountsIn(bigNumberify(1), [token0.address], false)).to.be.revertedWith(
       'UniswapV2Library: INVALID_PATH'
     )
     const path = [token0.address, token1.address]
-    expect(await router.getAmountsIn(bigNumberify(1), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
+    expect(await router.getAmountsIn(bigNumberify(1), path, false)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
   })
 })
 
@@ -247,6 +251,8 @@ describe('fee-on-transfer tokens', () => {
         0,
         [DTT.address, WETH.address],
         wallet.address,
+        AddressZero,
+        false,
         MaxUint256,
         overrides
       )
@@ -262,6 +268,8 @@ describe('fee-on-transfer tokens', () => {
         0,
         [WETH.address, DTT.address],
         wallet.address,
+        AddressZero,
+        false,
         MaxUint256,
         overrides
       )
@@ -281,6 +289,8 @@ describe('fee-on-transfer tokens', () => {
       0,
       [WETH.address, DTT.address],
       wallet.address,
+      AddressZero,
+      false,
       MaxUint256,
       {
         ...overrides,
@@ -305,6 +315,8 @@ describe('fee-on-transfer tokens', () => {
       0,
       [DTT.address, WETH.address],
       wallet.address,
+      AddressZero,
+      false,
       MaxUint256,
       overrides
     )
@@ -375,6 +387,8 @@ describe('fee-on-transfer tokens: reloaded', () => {
         0,
         [DTT.address, DTT2.address],
         wallet.address,
+        AddressZero,
+        false,
         MaxUint256,
         overrides
       )

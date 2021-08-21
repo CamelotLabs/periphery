@@ -77,11 +77,13 @@ describe('ExampleComputeLiquidityValue', () => {
 
     it('correct after swap', async () => {
       await token0.approve(router.address, MaxUint256, overrides)
-      await router.swapExactTokensForTokens(
+      await router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
         expandTo18Decimals(10),
         0,
         [token0.address, token1.address],
         wallet.address,
+        AddressZero,
+        false,
         MaxUint256,
         overrides
       )
@@ -109,11 +111,13 @@ describe('ExampleComputeLiquidityValue', () => {
 
       it('correct after swap', async () => {
         await token0.approve(router.address, MaxUint256, overrides)
-        await router.swapExactTokensForTokens(
+        await router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
           expandTo18Decimals(20),
           0,
           [token0.address, token1.address],
           wallet.address,
+          AddressZero,
+          false,
           MaxUint256,
           overrides
         )
@@ -279,11 +283,13 @@ describe('ExampleComputeLiquidityValue', () => {
       describe('after a swap', () => {
         beforeEach('swap to ~1:25', async () => {
           await token0.approve(router.address, MaxUint256, overrides)
-          await router.swapExactTokensForTokens(
+          await router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
             expandTo18Decimals(10),
             0,
             [token0.address, token1.address],
             wallet.address,
+            AddressZero,
+            false,
             MaxUint256,
             overrides
           )
@@ -410,11 +416,13 @@ describe('ExampleComputeLiquidityValue', () => {
       describe('after a swap', () => {
         beforeEach('swap to ~1:25', async () => {
           await token0.approve(router.address, MaxUint256, overrides)
-          await router.swapExactTokensForTokens(
+          await router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
             expandTo18Decimals(20),
             0,
             [token0.address, token1.address],
             wallet.address,
+            AddressZero,
+            false,
             MaxUint256,
             overrides
           )
