@@ -6,7 +6,8 @@ import { solidity, MockProvider, createFixtureLoader, deployContract } from 'eth
 import { expandTo18Decimals } from './shared/utilities'
 import { v2Fixture } from './shared/fixtures'
 
-import ExampleComputeLiquidityValue from '../build/ExampleComputeLiquidityValue.json'
+
+import ExampleComputeLiquidityValue from '../build/contracts/ExampleComputeLiquidityValue.json'
 
 chai.use(solidity)
 
@@ -83,7 +84,6 @@ describe('ExampleComputeLiquidityValue', () => {
         [token0.address, token1.address],
         wallet.address,
         AddressZero,
-        false,
         MaxUint256,
         overrides
       )
@@ -117,7 +117,6 @@ describe('ExampleComputeLiquidityValue', () => {
           [token0.address, token1.address],
           wallet.address,
           AddressZero,
-          false,
           MaxUint256,
           overrides
         )
@@ -253,7 +252,7 @@ describe('ExampleComputeLiquidityValue', () => {
             100,
             expandTo18Decimals(5)
           )
-        ).to.eq('18085')
+        ).to.eq('18041')
       })
 
       it('gas higher price', async () => {
@@ -265,7 +264,7 @@ describe('ExampleComputeLiquidityValue', () => {
             105,
             expandTo18Decimals(5)
           )
-        ).to.eq('18872')
+        ).to.eq('18828')
       })
 
       it('gas lower price', async () => {
@@ -277,7 +276,7 @@ describe('ExampleComputeLiquidityValue', () => {
             95,
             expandTo18Decimals(5)
           )
-        ).to.eq('18917')
+        ).to.eq('18873')
       })
 
       describe('after a swap', () => {
@@ -289,7 +288,6 @@ describe('ExampleComputeLiquidityValue', () => {
             [token0.address, token1.address],
             wallet.address,
             AddressZero,
-            false,
             MaxUint256,
             overrides
           )
@@ -386,7 +384,7 @@ describe('ExampleComputeLiquidityValue', () => {
             100,
             expandTo18Decimals(5)
           )
-        ).to.eq('22296')
+        ).to.eq('22274')
       })
 
       it('gas higher price', async () => {
@@ -398,7 +396,7 @@ describe('ExampleComputeLiquidityValue', () => {
             105,
             expandTo18Decimals(5)
           )
-        ).to.eq('23966')
+        ).to.eq('23944')
       })
 
       it('gas lower price', async () => {
@@ -410,7 +408,7 @@ describe('ExampleComputeLiquidityValue', () => {
             95,
             expandTo18Decimals(5)
           )
-        ).to.eq('23897')
+        ).to.eq('23875')
       })
 
       describe('after a swap', () => {
@@ -422,7 +420,6 @@ describe('ExampleComputeLiquidityValue', () => {
             [token0.address, token1.address],
             wallet.address,
             AddressZero,
-            false,
             MaxUint256,
             overrides
           )

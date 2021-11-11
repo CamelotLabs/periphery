@@ -21,7 +21,7 @@ library UniswapV2Library {
                 hex'ff',
                 factory,
                 keccak256(abi.encodePacked(token0, token1)),
-                hex'7e643adb607f78eb09b8037b7f13543a02f53a1834f6bf5a19e87a19ac66d1c3' // init code hash
+                hex'7bf60af0a14edab3ee051c0c69374d9014d820501dad544fa3123f14f6494277' // init code hash
             ))));
     }
 
@@ -69,34 +69,22 @@ library UniswapV2Library {
 
     // performs chained getAmountOut calculations on any number of pairs
     function getAmountsOut(address factory, uint amountIn, address[] memory path) internal view returns (uint[] memory amounts) {
-        return getAmountsOut(factory, amountIn, path, false);
-    }
-
-    // performs chained getAmountIn calculations on any number of pairs
-    function getAmountsIn(address factory, uint amountOut, address[] memory path) internal view returns (uint[] memory amounts) {
-        return getAmountsIn(factory, amountOut, path, false);
-    }
-
-    // performs chained getAmountOut calculations on any number of pairs
-    function getAmountsOut(address factory, uint amountIn, address[] memory path, bool withReduction) internal view returns (uint[] memory amounts) {
         require(path.length >= 2, 'UniswapV2Library: INVALID_PATH');
         amounts = new uint[](path.length);
         amounts[0] = amountIn;
         for (uint i; i < path.length - 1; i++) {
             (uint reserveIn, uint reserveOut, uint feeAmount) = getReservesAndFeeAmount(factory, path[i], path[i + 1]);
-            feeAmount = withReduction ? feeAmount.mul(50) / 100 : feeAmount;
             amounts[i + 1] = getAmountOut(amounts[i], reserveIn, reserveOut, feeAmount );
         }
     }
 
     // performs chained getAmountIn calculations on any number of pairs
-    function getAmountsIn(address factory, uint amountOut, address[] memory path, bool withReduction) internal view returns (uint[] memory amounts) {
+    function getAmountsIn(address factory, uint amountOut, address[] memory path) internal view returns (uint[] memory amounts) {
         require(path.length >= 2, 'UniswapV2Library: INVALID_PATH');
         amounts = new uint[](path.length);
         amounts[amounts.length - 1] = amountOut;
         for (uint i = path.length - 1; i > 0; i--) {
             (uint reserveIn, uint reserveOut, uint feeAmount) = getReservesAndFeeAmount(factory, path[i - 1], path[i]);
-            feeAmount = withReduction ? feeAmount.mul(50) / 100 : feeAmount;
             amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut, feeAmount);
         }
     }

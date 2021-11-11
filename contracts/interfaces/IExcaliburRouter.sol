@@ -28,7 +28,6 @@ interface IExcaliburRouter is IUniswapV2Router01 {
     address[] calldata path,
     address to,
     address referrer,
-    bool payEXCFees,
     uint deadline
   ) external;
 
@@ -37,7 +36,6 @@ interface IExcaliburRouter is IUniswapV2Router01 {
     address[] calldata path,
     address to,
     address referrer,
-    bool payEXCFees,
     uint deadline
   ) external payable;
 
@@ -47,7 +45,6 @@ interface IExcaliburRouter is IUniswapV2Router01 {
     address[] calldata path,
     address to,
     address referrer,
-    bool payEXCFees,
     uint deadline
   ) external;
 

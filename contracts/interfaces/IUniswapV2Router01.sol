@@ -71,15 +71,14 @@ interface IUniswapV2Router01 {
     address[] calldata path,
     address to,
     address referrer,
-    bool payEXCFees,
     uint deadline
   ) external returns (uint[] memory amounts);
 
-  function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, address referrer, bool payEXCFees, uint deadline)
+  function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, address referrer, uint deadline)
   external
   returns (uint[] memory amounts);
 
-  function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, address referrer, bool payEXCFees, uint deadline)
+  function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, address referrer, uint deadline)
   external
   payable
   returns (uint[] memory amounts);
@@ -88,7 +87,4 @@ interface IUniswapV2Router01 {
 
   function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut, uint feeAmount) external pure returns (uint amountOut);
   function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut, uint feeAmount) external pure returns (uint amountIn);
-
-  function getAmountsOut(uint amountIn, address[] calldata path, bool withReductionOnFee) external view returns (uint[] memory amounts);
-  function getAmountsIn(uint amountOut, address[] calldata path, bool withReductionOnFee) external view returns (uint[] memory amounts);
 }
