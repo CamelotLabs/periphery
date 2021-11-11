@@ -3,15 +3,14 @@ import { solidity, MockProvider, createFixtureLoader, deployContract } from 'eth
 import { Contract } from 'ethers'
 import { BigNumber, bigNumberify } from 'ethers/utils'
 import { AddressZero, MaxUint256 } from 'ethers/constants'
-import IExcaliburV2Pair from 'excalibur-core/build_test/IExcaliburV2Pair.json'
+import IExcaliburV2Pair from 'excalibur-core/build/contracts/IExcaliburV2Pair.json'
 
 import { v2Fixture } from './shared/fixtures'
 import { expandTo18Decimals, getApprovalDigest, MINIMUM_LIQUIDITY } from './shared/utilities'
 
-import PriceFeeder from '../build/PriceFeeder.json'
+import PriceFeeder from '../build/contracts/PriceFeeder.json'
 import { ecsign } from 'ethereumjs-util'
 import { BigNumberish } from 'ethers/utils/bignumber'
-import {describe} from "mocha";
 
 chai.use(solidity)
 
@@ -25,6 +24,7 @@ describe('ExcaliburRouter', () => {
     mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
     gasLimit: 9999999
   })
+
   const [wallet] = provider.getWallets()
   const loadFixture = createFixtureLoader(provider, [wallet])
 
@@ -109,12 +109,12 @@ describe('ExcaliburRouter', () => {
     expect(await priceConsumer.valueOfTokenUSD(token0.address)).to.eq(expandTo18Decimals(0))
 
     var priceFeederToken0 = await deployContract(wallet, PriceFeeder, [0, 1], overrides)
-    await priceConsumer.addTokenPriceFeeder(token0.address, USD.address, priceFeederToken0.address)
+    await priceConsumer.setTokenPriceFeeder(token0.address, USD.address, priceFeederToken0.address)
     expect(await priceConsumer.getTokenFairPriceUSD(token0.address)).to.eq(expandTo18Decimals(1))
     expect(await priceConsumer.valueOfTokenUSD(token0.address)).to.eq(expandTo18Decimals(1))
 
     priceFeederToken0 = await deployContract(wallet, PriceFeeder, [20, expandTo18Decimals(100)], overrides)
-    await priceConsumer.addTokenPriceFeeder(token0.address, USD.address, priceFeederToken0.address)
+    await priceConsumer.setTokenPriceFeeder(token0.address, USD.address, priceFeederToken0.address)
     expect(await priceConsumer.getTokenFairPriceUSD(token0.address)).to.eq(expandTo18Decimals(1))
     expect(await priceConsumer.valueOfTokenUSD(token0.address)).to.eq(expandTo18Decimals(1))
   })
@@ -124,15 +124,15 @@ describe('ExcaliburRouter', () => {
     expect(await priceConsumer.valueOfTokenUSD(token0.address)).to.eq(expandTo18Decimals(0))
 
     const priceFeederWETH  = await deployContract(wallet, PriceFeeder, [0, 2], overrides) // 1WETH = 2USD
-    await priceConsumer.addTokenPriceFeeder(WETH.address, USD.address, priceFeederWETH.address)
+    await priceConsumer.setTokenPriceFeeder(WETH.address, USD.address, priceFeederWETH.address)
 
     var priceFeederToken0 = await deployContract(wallet, PriceFeeder, [0, 1], overrides)
-    await priceConsumer.addTokenPriceFeeder(token0.address, WETH.address, priceFeederToken0.address)
+    await priceConsumer.setTokenPriceFeeder(token0.address, WETH.address, priceFeederToken0.address)
     expect(await priceConsumer.getTokenFairPriceUSD(token0.address)).to.eq(expandTo18Decimals(2))
     expect(await priceConsumer.valueOfTokenUSD(token0.address)).to.eq(expandTo18Decimals(2))
 
     priceFeederToken0 = await deployContract(wallet, PriceFeeder, [20, expandTo18Decimals(100)], overrides)
-    await priceConsumer.addTokenPriceFeeder(token0.address, WETH.address, priceFeederToken0.address)
+    await priceConsumer.setTokenPriceFeeder(token0.address, WETH.address, priceFeederToken0.address)
     expect(await priceConsumer.getTokenFairPriceUSD(token0.address)).to.eq(expandTo18Decimals(2))
     expect(await priceConsumer.valueOfTokenUSD(token0.address)).to.eq(expandTo18Decimals(2))
   })

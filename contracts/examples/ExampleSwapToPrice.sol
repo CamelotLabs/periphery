@@ -3,13 +3,15 @@ pragma solidity =0.6.6;
 import '@uniswap/lib/contracts/libraries/Babylonian.sol';
 import '@uniswap/lib/contracts/libraries/TransferHelper.sol';
 
+import 'excalibur-core/contracts/interfaces/IExcaliburV2Pair.sol';
+import 'excalibur-core/contracts/interfaces/IERC20.sol';
+
+import '../interfaces/IExcaliburRouter.sol';
+
 import '../libraries/UniswapV2LiquidityMathLibrary.sol';
 import '../libraries/SafeMath.sol';
 import '../libraries/UniswapV2Library.sol';
 
-import 'excalibur-core/contracts/interfaces/IExcaliburV2Pair.sol';
-import '../interfaces/IERC20.sol';
-import '../interfaces/IExcaliburRouter.sol';
 
 contract ExampleSwapToPrice {
     using SafeMath for uint256;
@@ -73,7 +75,6 @@ contract ExampleSwapToPrice {
             path,
             to,
             address(0),
-            false,
             deadline
         );
     }

@@ -6,7 +6,7 @@
     "node": ">=10"
   },
   "dependencies": {
-    "@truffle/hdwallet-provider": "^1.4.3",
+    "@truffle/hdwallet-provider": "^1.5.0",
     "@uniswap/lib": "4.0.1-alpha",
     "excalibur-core": "file:../core",
     "truffle-plugin-verify": "^0.5.11"
@@ -30,9 +30,7 @@
   "scripts": {
     "lint": "yarn prettier ./test/*.ts --check",
     "lint:fix": "yarn prettier ./test/*.ts --write",
-    "clean": "rimraf ./build/",
-    "precompile": "yarn clean",
-    "compile": "waffle .waffle.json",
+    "compile": "truffle compile",
     "pretest": "yarn compile",
     "test": "mocha",
     "prepublishOnly": "yarn test"

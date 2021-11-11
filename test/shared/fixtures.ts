@@ -4,14 +4,14 @@ import { deployContract } from 'ethereum-waffle'
 
 import { expandTo18Decimals } from './utilities'
 
-import ExcaliburV2Factory from 'excalibur-core/build_test/ExcaliburV2Factory.json'
-import IExcaliburV2Pair from 'excalibur-core/build_test/IExcaliburV2Pair.json'
+import ExcaliburV2Factory from 'excalibur-core/build/contracts/ExcaliburV2Factory.json'
+import IExcaliburV2Pair from 'excalibur-core/build/contracts/IExcaliburV2Pair.json'
 
-import ERC20 from '../../build/ERC20.json'
-import WETH9 from '../../build/WETH9.json'
-import ExcaliburRouter from '../../build/ExcaliburRouter.json'
-import PriceConsumer from '../../build/PriceConsumerV3.json'
-import RouterEventEmitter from '../../build/RouterEventEmitter.json'
+import ERC20 from '../../build/contracts/ERC20.json'
+import WETH9 from '../../build/contracts/WETH9.json'
+import ExcaliburRouter from '../../build/contracts/ExcaliburRouter.json'
+import PriceConsumer from '../../build/contracts/PriceConsumerV3.json'
+import RouterEventEmitter from '../../build/contracts/RouterEventEmitter.json'
 import {keccak256, zeroAddress} from "ethereumjs-util";
 
 const overrides = {
@@ -50,7 +50,7 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
 
   // deploy routers
   const priceConsumer = await deployContract(wallet, PriceConsumer, [factoryV2.address, WETH.address, USD.address, EXC.address], overrides)
-  const router02 = await deployContract(wallet, ExcaliburRouter, [factoryV2.address, WETH.address, EXC.address, wallet.address, priceConsumer.address], overrides)
+  const router02 = await deployContract(wallet, ExcaliburRouter, [factoryV2.address, WETH.address, EXC.address, priceConsumer.address], overrides)
 
   // event emitter for testing
   const routerEventEmitter = await deployContract(wallet, RouterEventEmitter, [])
@@ -68,7 +68,6 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
   await factoryV2.createPair(WETH.address, WETHPartner.address)
   const WETHPairAddress = await factoryV2.getPair(WETH.address, WETHPartner.address)
   const WETHPair = new Contract(WETHPairAddress, JSON.stringify(IExcaliburV2Pair.abi), provider).connect(wallet)
-
   return {
     token0,
     token1,

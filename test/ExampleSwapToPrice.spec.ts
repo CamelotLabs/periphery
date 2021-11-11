@@ -1,13 +1,12 @@
 import chai, { expect } from 'chai'
 import { Contract } from 'ethers'
 import { MaxUint256 } from 'ethers/constants'
-import { BigNumber, bigNumberify, defaultAbiCoder, formatEther } from 'ethers/utils'
 import { solidity, MockProvider, createFixtureLoader, deployContract } from 'ethereum-waffle'
 
 import { expandTo18Decimals } from './shared/utilities'
 import { v2Fixture } from './shared/fixtures'
 
-import ExampleSwapToPrice from '../build/ExampleSwapToPrice.json'
+import ExampleSwapToPrice from '../build/contracts/ExampleSwapToPrice.json'
 
 chai.use(solidity)
 
@@ -192,7 +191,7 @@ describe('ExampleSwapToPrice', () => {
         overrides
       )
       const receipt = await tx.wait()
-      expect(receipt.gasUsed).to.eq('127526')
+      expect(receipt.gasUsed).to.eq('135808')
     }).retries(2) // gas test is inconsistent
   })
 })

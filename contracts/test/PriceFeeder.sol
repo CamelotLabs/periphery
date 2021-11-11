@@ -14,6 +14,10 @@ contract PriceFeeder is AggregatorV3Interface {
     price = price_;
   }
 
+  function setPrice(int256 _price) public {
+    price = _price;
+  }
+
   function description() external view virtual override returns (string memory){
     return "TEST";
   }

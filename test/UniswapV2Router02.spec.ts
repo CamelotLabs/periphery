@@ -3,12 +3,12 @@ import { solidity, MockProvider, createFixtureLoader, deployContract } from 'eth
 import { Contract } from 'ethers'
 import { BigNumber, bigNumberify } from 'ethers/utils'
 import { AddressZero, MaxUint256 } from 'ethers/constants'
-import IExcaliburV2Pair from 'excalibur-core/build_test/IExcaliburV2Pair.json'
+import IExcaliburV2Pair from 'excalibur-core/build/contracts/IExcaliburV2Pair.json'
 
 import { v2Fixture } from './shared/fixtures'
 import { expandTo18Decimals, getApprovalDigest, MINIMUM_LIQUIDITY } from './shared/utilities'
 
-import DeflatingERC20 from '../build/DeflatingERC20.json'
+import DeflatingERC20 from '../build/contracts/DeflatingERC20.json'
 import { ecsign } from 'ethereumjs-util'
 import { BigNumberish } from 'ethers/utils/bignumber'
 
@@ -98,11 +98,11 @@ describe('ExcaliburRouter', () => {
       overrides
     )
 
-    await expect(router.getAmountsOut(bigNumberify(2), [token0.address], false)).to.be.revertedWith(
+    await expect(router.getAmountsOut(bigNumberify(2), [token0.address])).to.be.revertedWith(
       'UniswapV2Library: INVALID_PATH'
     )
     const path = [token0.address, token1.address]
-    expect(await router.getAmountsOut(bigNumberify(2), path, false)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
+    expect(await router.getAmountsOut(bigNumberify(2), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
   })
 
   it('getAmountsIn', async () => {
@@ -120,11 +120,11 @@ describe('ExcaliburRouter', () => {
       overrides
     )
 
-    await expect(router.getAmountsIn(bigNumberify(1), [token0.address], false)).to.be.revertedWith(
+    await expect(router.getAmountsIn(bigNumberify(1), [token0.address])).to.be.revertedWith(
       'UniswapV2Library: INVALID_PATH'
     )
     const path = [token0.address, token1.address]
-    expect(await router.getAmountsIn(bigNumberify(1), path, false)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
+    expect(await router.getAmountsIn(bigNumberify(1), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
   })
 })
 
@@ -252,7 +252,6 @@ describe('fee-on-transfer tokens', () => {
         [DTT.address, WETH.address],
         wallet.address,
         AddressZero,
-        false,
         MaxUint256,
         overrides
       )
@@ -269,7 +268,6 @@ describe('fee-on-transfer tokens', () => {
         [WETH.address, DTT.address],
         wallet.address,
         AddressZero,
-        false,
         MaxUint256,
         overrides
       )
@@ -290,7 +288,6 @@ describe('fee-on-transfer tokens', () => {
       [WETH.address, DTT.address],
       wallet.address,
       AddressZero,
-      false,
       MaxUint256,
       {
         ...overrides,
@@ -316,7 +313,6 @@ describe('fee-on-transfer tokens', () => {
       [DTT.address, WETH.address],
       wallet.address,
       AddressZero,
-      false,
       MaxUint256,
       overrides
     )
@@ -388,7 +384,6 @@ describe('fee-on-transfer tokens: reloaded', () => {
         [DTT.address, DTT2.address],
         wallet.address,
         AddressZero,
-        false,
         MaxUint256,
         overrides
       )

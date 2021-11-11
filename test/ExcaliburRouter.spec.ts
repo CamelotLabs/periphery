@@ -3,13 +3,13 @@ import { solidity, MockProvider, createFixtureLoader, deployContract } from 'eth
 import { Contract } from 'ethers'
 import { BigNumber, bigNumberify } from 'ethers/utils'
 import { AddressZero, MaxUint256 } from 'ethers/constants'
-import IExcaliburV2Pair from 'excalibur-core/build_test/IExcaliburV2Pair.json'
-import PriceFeeder from '../build/PriceFeeder.json'
+import IExcaliburV2Pair from 'excalibur-core/build/contracts/IExcaliburV2Pair.json'
+import PriceFeeder from '../build/contracts/PriceFeeder.json'
 
 import { v2Fixture } from './shared/fixtures'
 import { expandTo18Decimals, getApprovalDigest, MINIMUM_LIQUIDITY } from './shared/utilities'
 
-import DeflatingERC20 from '../build/DeflatingERC20.json'
+import DeflatingERC20 from '../build/contracts/DeflatingERC20.json'
 import { ecsign } from 'ethereumjs-util'
 import { BigNumberish } from 'ethers/utils/bignumber'
 
@@ -107,12 +107,23 @@ describe('ExcaliburRouter', () => {
 
     expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(0)
 
-    var priceFeederToken0 = await deployContract(wallet, PriceFeeder, [0, 10], overrides)
-    await priceConsumer.addTokenPriceFeeder(token0.address, USD.address, priceFeederToken0.address)
+    var priceFeederToken1 = await deployContract(wallet, PriceFeeder, [0, 10], overrides)
+    await priceConsumer.setTokenPriceFeeder(token1.address, USD.address, priceFeederToken1.address)
 
-    // swapAmount * swapTokenPriceBUSD * feeAmount * 30% / excPrice
-    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(45).div(100)) // 0.45
+    // outputAmount * outputTokenPriceBUSD * feeAmount * feeRefundShare / excPrice
+    await pair.setFeeAmount(300)
+    // Tokens are not whitelisted
+    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(0)
+    await priceConsumer.setWhitelistToken(token0.address, true);
+    await priceConsumer.setWhitelistToken(token1.address, true);
+    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(15).div(10))
     await pair.setFeeAmount(600)
-    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(9).div(10)) // 0.9
+    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(3))
+
+    await router.setFeeRefundShare(50)
+    await pair.setFeeAmount(300)
+    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(75).div(100))
+    await pair.setFeeAmount(600)
+    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(15).div(10))
   })
 })
