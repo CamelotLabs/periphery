@@ -267,6 +267,11 @@ contract ExcaliburRouter is IExcaliburRouter {
 
   // **** SWAP ****
 
+  /**
+   * @dev Calculates the amount of fees in EXC to give back to the user
+   *
+   * Used for transaction fee mining
+   */
   function getEXCFees(address inputToken, address outputToken, uint outputTokenAmount) public view returns (uint estimatedExcAmount){
     uint toTokenPriceUSD = priceConsumer.valueOfToTokenUSD(inputToken, outputToken);
     address pair = IExcaliburV2Factory(factory).getPair(inputToken, outputToken);
@@ -277,6 +282,7 @@ contract ExcaliburRouter is IExcaliburRouter {
 
     if (excPrice == 0) return 0;
 
+    // check if token decimals is 18 like the EXC token and adjust it for conversion
     uint toTokenDecimals = IERC20(outputToken).decimals();
     if (toTokenDecimals <= 18) {
       outputTokenAmount = outputTokenAmount.mul(10 ** (18 - toTokenDecimals));
@@ -289,16 +295,25 @@ contract ExcaliburRouter is IExcaliburRouter {
     return feeAmountBUSD.mul(feeRefundShare) / 100 / excPrice;
   }
 
+  /**
+   * @dev Updates harvestable EXC balance for caller
+   */
   function _updateAccountAccEXCFromFees(address swapToken, address toToken, uint swapTokenAmount) internal {
     if(feeRefundShare == 0 ||  msg.sender != tx.origin ) return;
     accountAccEXCFromFees[msg.sender] += getEXCFees(swapToken, toToken, swapTokenAmount);
   }
 
+  /**
+   * @dev EXC minting for transaction fee mining
+   */
   function _safeMintExc(address to, uint value) private {
     (bool success, bytes memory data) = EXC.call(abi.encodeWithSelector(EXC_MINT_SELECTOR, to, value));
     require(success && (data.length == 0 || abi.decode(data, (bool))), 'ExcaliburV2Pair: MINT_FAILED');
   }
 
+  /**
+   * @dev Claim EXC rewards from transaction fee mining
+   */
   function withdrawAccEXCFromFees() external {
     require(msg.sender == tx.origin && !isContract(msg.sender), "contracts not allowed");
 

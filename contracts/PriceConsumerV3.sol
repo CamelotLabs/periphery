@@ -14,13 +14,13 @@ contract PriceConsumerV3 is IPriceConsumer {
   address public owner;
   address public factory;
 
-  address public immutable override USD;
+  address public immutable override USD; // stable usd coin, will be adapted depending on the used chain
   address public immutable override WETH;
   address public immutable override EXC;
+  
+  mapping(address => bool) whitelistedTokens; // trustable tokens for transaction fee mining
 
-  // [tokenAddress][quoteAddress] = priceFeederAddress => quoteAddress (WBNB,BUSD)
-  mapping(address => bool) whitelistedTokens;
-
+  // [tokenAddress][quoteAddress] = priceFeederAddress => quoteAddress (WETH,USD)
   mapping(address => mapping(address => address)) public tokenPriceFeeder;
 
   event SetWhitelistToken(address token, bool isWhitelisted);
@@ -39,7 +39,7 @@ contract PriceConsumerV3 is IPriceConsumer {
    * @dev Throws if called by any account other than the owner.
    */
   modifier onlyOwner() {
-    require(owner == msg.sender, "ExcaliburV2Factory: caller is not the owner");
+    require(owner == msg.sender, "PriceConsumerV3: caller is not the owner");
     _;
   }
 
@@ -80,47 +80,57 @@ contract PriceConsumerV3 is IPriceConsumer {
   }
 
   /**
-   * Returns the latest price in USD
+   * @dev Returns the token latest price in USD based on priceFeeder
    */
   function _getTokenFairPriceUSD(address token) internal view returns (uint) {
     address quote = tokenPriceFeeder[token][USD] != address(0) ? USD : WETH;
     address priceFeeder = tokenPriceFeeder[token][quote];
 
-    // No priceFeeder available
+    // no priceFeeder available
     if (priceFeeder == address(0)) return 0;
 
     uint priceDecimals = uint(AggregatorV3Interface(priceFeeder).decimals());
     (,int price,,,) = AggregatorV3Interface(priceFeeder).latestRoundData();
-    uint valueInBUSD = 0;
+    uint valueInUSD = 0;
+
+    // check if price decimals is 18 like the EXC token and adjust it for conversion
     if (priceDecimals <= 18) {
-      valueInBUSD = uint(price).mul(10 ** (18 - priceDecimals));
+      valueInUSD = uint(price).mul(10 ** (18 - priceDecimals));
     }
     else {
-      valueInBUSD = uint(price) / (10 ** (priceDecimals - 18));
+      valueInUSD = uint(price) / (10 ** (priceDecimals - 18));
     }
 
     if (quote == WETH) {
-      return valueInBUSD.mul(_getWETHFairPriceUSD()) / 1e18;
+      return valueInUSD.mul(_getWETHFairPriceUSD()) / 1e18;
     }
-    return valueInBUSD;
+    return valueInUSD;
   }
 
+  /**
+   * @dev Returns the WETH latest price in USD based on priceFeeder
+   */
   function _getWETHFairPriceUSD() internal view returns (uint){
     address priceFeeder = tokenPriceFeeder[WETH][USD];
     if (priceFeeder == address(0)) return _getTokenPriceUSDUsingPair(WETH);
 
     uint priceDecimals = uint(AggregatorV3Interface(priceFeeder).decimals());
     (,int price,,,) = AggregatorV3Interface(priceFeeder).latestRoundData();
-    uint valueInBUSD = 0;
+    uint valueInUSD = 0;
     if (priceDecimals <= 18) {
-      valueInBUSD = uint(price).mul(10 ** (18 - priceDecimals));
+      valueInUSD = uint(price).mul(10 ** (18 - priceDecimals));
     }
     else {
-      valueInBUSD = uint(price) / (10 ** (priceDecimals - 18));
+      valueInUSD = uint(price) / (10 ** (priceDecimals - 18));
     }
-    return valueInBUSD;
+    return valueInUSD;
   }
 
+  /**
+   * @dev Returns the token latest price in USD based on pair
+   *
+   * Called if no priceFeeder is available for this token
+   */
   function _getTokenPriceUSDUsingPair(address token) internal view returns (uint){
     address quote = USD;
     address _pair = IExcaliburV2Factory(factory).getPair(token, quote);
@@ -139,6 +149,7 @@ contract PriceConsumerV3 is IPriceConsumer {
     if(reserve0 == 0 || reserve1 == 0) return 0;
 
     uint priceInQuote = 0;
+    // check if price decimals is 18 like the EXC token and adjust it for conversion
     if (pair.token0() == quote) {
       if (quoteDecimals <= 18) {
         reserve0 = reserve0.mul(10 ** (18 - quoteDecimals));
