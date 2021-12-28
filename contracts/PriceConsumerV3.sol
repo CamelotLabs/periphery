@@ -18,7 +18,7 @@ contract PriceConsumerV3 is IPriceConsumer {
   address public immutable override WETH;
   address public immutable override EXC;
 
-  uint public lastEXCPrice;
+  uint internal _lastEXCPrice;
 
   // [tokenAddress][quoteAddress] = priceFeederAddress => quoteAddress (WETH,USD)
   mapping(address => mapping(address => address)) public tokenPriceFeeder;
@@ -44,6 +44,10 @@ contract PriceConsumerV3 is IPriceConsumer {
     _;
   }
 
+  function lastEXCPrice() external view override returns (uint){
+    return _lastEXCPrice;
+  }
+
   function getTokenFairPriceUSD(address token) external override view returns (uint) {
     return _getTokenFairPriceUSD(token);
   }
@@ -65,11 +69,11 @@ contract PriceConsumerV3 is IPriceConsumer {
 
   function getEXCMaxPriceUSD() external override returns (uint){
     uint calculatedPriceUSD = _getTokenPriceUSDUsingPair(EXC);
-    if (lastEXCPrice < calculatedPriceUSD) {
-      emit SetLastEXCPrice(lastEXCPrice, calculatedPriceUSD);
-      lastEXCPrice = calculatedPriceUSD;
+    if (_lastEXCPrice < calculatedPriceUSD) {
+      emit SetLastEXCPrice(_lastEXCPrice, calculatedPriceUSD);
+      _lastEXCPrice = calculatedPriceUSD;
     }
-    return lastEXCPrice;
+    return _lastEXCPrice;
   }
 
   function valueOfTokenUSD(address token) external view override returns (uint valueInUSD) {
@@ -83,8 +87,8 @@ contract PriceConsumerV3 is IPriceConsumer {
   }
 
   function setLastEXCPrice(uint price) external onlyOwner {
-    emit SetLastEXCPrice(lastEXCPrice, price);
-    lastEXCPrice = price;
+    emit SetLastEXCPrice(_lastEXCPrice, price);
+    _lastEXCPrice = price;
   }
 
   function setOwner(address _owner) external onlyOwner {
@@ -105,7 +109,7 @@ contract PriceConsumerV3 is IPriceConsumer {
   /**
    * @dev Returns the token latest price in USD based on priceFeeder
    */
-  function _getTokenFairPriceUSD(address token) internal view returns (uint) {
+  function _getTokenFairPriceUSD(address token) internal view returns (uint valueInUSD) {
     address quote = tokenPriceFeeder[token][USD] != address(0) ? USD : WETH;
     address priceFeeder = tokenPriceFeeder[token][quote];
 
@@ -116,13 +120,10 @@ contract PriceConsumerV3 is IPriceConsumer {
     (,int price,,,) = AggregatorV3Interface(priceFeeder).latestRoundData();
     if (price <= 0) return 0;
 
-    uint valueInUSD = 0;
-
-    // check if price decimals is 18 like the EXC token and adjust it for conversion
-    if (priceDecimals <= 18) {
+    if (priceDecimals < 18) {
       valueInUSD = uint(price).mul(10 ** (18 - priceDecimals));
     }
-    else {
+    else if (priceDecimals > 18) {
       valueInUSD = uint(price) / (10 ** (priceDecimals - 18));
     }
 
@@ -144,10 +145,10 @@ contract PriceConsumerV3 is IPriceConsumer {
     if (price <= 0) return 0;
 
     uint valueInUSD = 0;
-    if (priceDecimals <= 18) {
+    if (priceDecimals < 18) {
       valueInUSD = uint(price).mul(10 ** (18 - priceDecimals));
     }
-    else {
+    else if (priceDecimals > 18){
       valueInUSD = uint(price) / (10 ** (priceDecimals - 18));
     }
     return valueInUSD;
@@ -176,24 +177,23 @@ contract PriceConsumerV3 is IPriceConsumer {
     if (reserve0 == 0 || reserve1 == 0) return 0;
 
     uint priceInQuote = 0;
-    // check if price decimals is 18 like the EXC token and adjust it for conversion
     address token0 = pair.token0();
     if (token0 == quote) {
       uint token1Decimals = IERC20(pair.token1()).decimals();
-      if (quoteDecimals <= 18) {
+      if (quoteDecimals < 18) {
         reserve0 = reserve0.mul(10 ** (18 - quoteDecimals));
       }
-      else {
+      else if (quoteDecimals > 18) {
         reserve0 = reserve0 / (10 ** (quoteDecimals - 18));
       }
       priceInQuote = reserve0.mul(10 ** token1Decimals) / reserve1;
     }
     else {
       uint token0Decimals = IERC20(token0).decimals();
-      if (quoteDecimals <= 18) {
+      if (quoteDecimals < 18) {
         reserve1 = reserve1.mul(10 ** (18 - quoteDecimals));
       }
-      else {
+      else if (quoteDecimals > 18) {
         reserve1 = reserve1 / (10 ** (quoteDecimals - 18));
       }
       priceInQuote = reserve1.mul(10 ** token0Decimals) / reserve0;

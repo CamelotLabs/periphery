@@ -15,7 +15,7 @@ import "./interfaces/ISwapFeeRebate.sol";
 contract ExcaliburRouter is IExcaliburRouter {
   using SafeMath for uint;
 
-  ISwapFeeRebate public immutable SwapFeeRebate;
+  ISwapFeeRebate public immutable swapFeeRebate;
 
   address public immutable EXC;
   address public immutable override factory;
@@ -47,7 +47,7 @@ contract ExcaliburRouter is IExcaliburRouter {
     factory = _factory;
     WETH = _WETH;
 
-    SwapFeeRebate = _SwapFeeRebate;
+    swapFeeRebate = _SwapFeeRebate;
     EXC = _EXC;
     curDayStartTime = block.timestamp;
   }
@@ -279,7 +279,7 @@ contract ExcaliburRouter is IExcaliburRouter {
    */
   function _updateAccountAccEXCFromFees(address swapToken, address toToken, uint swapTokenAmount) internal {
     if(feeRebateDisabled || msg.sender != tx.origin || !isContract(msg.sender)) return;
-    uint EXCAmount = SwapFeeRebate.getEXCFees(swapToken, toToken, swapTokenAmount);
+    uint EXCAmount = swapFeeRebate.getEXCFees(swapToken, toToken, swapTokenAmount);
     if(EXCAmount > 0){
       if(block.timestamp > curDayStartTime.add(1 days)){
         curDayStartTime = block.timestamp;
@@ -322,6 +322,7 @@ contract ExcaliburRouter is IExcaliburRouter {
 
   // requires the initial amount to have already been sent to the first pair
   function _swap(uint[] memory amounts, address[] memory path, address _to, address referrer) internal {
+    if(!feeRebateDisabled) swapFeeRebate.updateEXCLastPrice();
     for (uint i; i < path.length - 1; i++) {
       (address input, address output) = (path[i], path[i + 1]);
       (address token0,) = UniswapV2Library.sortTokens(input, output);
@@ -399,6 +400,7 @@ contract ExcaliburRouter is IExcaliburRouter {
   // **** SWAP (supporting fee-on-transfer tokens) ****
   // requires the initial amount to have already been sent to the first pair
   function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to, address referrer) internal {
+    if(!feeRebateDisabled) swapFeeRebate.updateEXCLastPrice();
     for (uint i; i < path.length - 1; i++) {
       (address input, address output) = (path[i], path[i + 1]);
       (address token0,) = UniswapV2Library.sortTokens(input, output);

@@ -11,6 +11,7 @@ import ERC20 from '../../build/contracts/ERC20.json'
 import WETH9 from '../../build/contracts/WETH9.json'
 import ExcaliburRouter from '../../build/contracts/ExcaliburRouter.json'
 import PriceConsumer from '../../build/contracts/PriceConsumerV3.json'
+import SwapFeeRebate from '../../build/contracts/SwapFeeRebate.json'
 import RouterEventEmitter from '../../build/contracts/RouterEventEmitter.json'
 import {keccak256, zeroAddress} from "ethereumjs-util";
 
@@ -30,16 +31,17 @@ interface V2Fixture {
   routerEventEmitter: Contract
   router: Contract
   priceConsumer: Contract
+  swapFeeRebate: Contract
   pair: Contract
   WETHPair: Contract
 }
 
 export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Promise<V2Fixture> {
   // deploy tokens
-  const tokenA = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)])
-  const tokenB = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)])
-  const EXC = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)])
-  const USD = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)])
+  const tokenA = await deployContract(wallet, ERC20, [expandTo18Decimals(100000)])
+  const tokenB = await deployContract(wallet, ERC20, [expandTo18Decimals(100000)])
+  const EXC = await deployContract(wallet, ERC20, [expandTo18Decimals(100000)])
+  const USD = await deployContract(wallet, ERC20, [expandTo18Decimals(100000)])
   const WETH = await deployContract(wallet, WETH9)
   const WETHPartner = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)])
 
@@ -48,9 +50,10 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
   await factoryV2.setFeeTo(zeroAddress()); // match uniswap config
   await factoryV2.setOwnerFeeShare(16666); // match uniswap config
 
-  // deploy routers
+  // deploy router
   const priceConsumer = await deployContract(wallet, PriceConsumer, [factoryV2.address, WETH.address, USD.address, EXC.address], overrides)
-  const router02 = await deployContract(wallet, ExcaliburRouter, [factoryV2.address, WETH.address, EXC.address, priceConsumer.address], overrides)
+  const swapFeeRebate = await deployContract(wallet, SwapFeeRebate, [factoryV2.address, EXC.address, priceConsumer.address], overrides);
+  const router02 = await deployContract(wallet, ExcaliburRouter, [factoryV2.address, WETH.address, EXC.address, swapFeeRebate.address], overrides)
 
   // event emitter for testing
   const routerEventEmitter = await deployContract(wallet, RouterEventEmitter, [])
@@ -80,6 +83,7 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
     router: router02, // the default router, 01 had a minor bug
     routerEventEmitter,
     priceConsumer,
+    swapFeeRebate,
     pair,
     WETHPair
   }

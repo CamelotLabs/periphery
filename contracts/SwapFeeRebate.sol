@@ -16,7 +16,7 @@ contract SwapFeeRebate is ISwapFeeRebate{
 
   IPriceConsumer public priceConsumer;
   uint public feeRebateShare = 100; // 100%
-  mapping(address => bool) whitelistedPairs; // trustable pairs for transaction fee mining
+  mapping(address => bool) public whitelistedPairs; // trustable pairs for transaction fee mining
 
   event FeeRebateShareUpdated(uint feeRebateShare, uint newFeeRebateShare);
   event SetPriceConsumer(address prevPriceConsumer, address priceConsumer);
@@ -52,45 +52,40 @@ contract SwapFeeRebate is ISwapFeeRebate{
     emit SetWhitelistPair(pair, whitelisted);
   }
 
-  function isWhitelistedPair(address pair) public view returns (bool isWhitelisted) {
+  function isWhitelistedPair(address pair) external view returns (bool) {
     return whitelistedPairs[pair];
   }
 
-  function getEXCFees(address inputToken, address outputToken, uint outputTokenAmount) external override returns (uint excAmount){
-    if (feeRebateShare == 0) return 0;
-    uint excPrice = priceConsumer.getEXCMaxPriceUSD();
-    if(excPrice == 0) return 0;
-    return _getEXCFees(inputToken, outputToken, outputTokenAmount, excPrice);
+  function updateEXCLastPrice() external override {
+    priceConsumer.getEXCMaxPriceUSD();
   }
 
-  /**
-   * @dev Calculates the amount of fees in EXC to give back to the user
-   *
-   * Used for transaction fee mining
-   */
-  function _getEXCFees(address inputToken, address outputToken, uint outputTokenAmount, uint excPrice) internal view returns (uint excAmount){
+  function getEXCFees(address inputToken, address outputToken, uint outputTokenAmount) external view override returns (uint){
+    if (feeRebateShare == 0) return 0;
+
     address pair = factory.getPair(inputToken, outputToken);
-    if (!isWhitelistedPair(pair)) return 0;
+    if (!whitelistedPairs[pair]) return 0;
     uint feeAmount = IExcaliburV2Pair(pair).feeAmount();
 
     if(outputToken == EXC){
       return outputTokenAmount.mul(feeAmount).mul(feeRebateShare) / 100000 / 100;
     }
 
+    uint excPrice = priceConsumer.lastEXCPrice();
+    if(excPrice == 0) return 0;
+
     uint outputTokenPriceUSD = priceConsumer.getTokenMinPriceUSD(outputToken);
     if(outputTokenPriceUSD == 0) return 0;
 
     // check if token decimals is 18 like the EXC token and adjust it for conversion
     uint outputTokenDecimals = IERC20(outputToken).decimals();
-    if (outputTokenDecimals <= 18) {
+    if (outputTokenDecimals < 18) {
       outputTokenAmount = outputTokenAmount.mul(10 ** (18 - outputTokenDecimals));
     }
-    else {
+    else if (outputTokenDecimals > 18){
       outputTokenAmount = outputTokenAmount / (10 ** (outputTokenDecimals - 18));
     }
 
-    uint feeAmountUSD = outputTokenAmount.mul(outputTokenPriceUSD).mul(feeAmount) / 100000;
-    return feeAmountUSD.mul(feeRebateShare) / 100 / excPrice;
+    return outputTokenAmount.mul(outputTokenPriceUSD).mul(feeAmount).mul(feeRebateShare) / 100000 / 100 / excPrice;
   }
-
 }
