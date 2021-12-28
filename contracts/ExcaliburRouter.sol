@@ -488,12 +488,12 @@ contract ExcaliburRouter is IExcaliburRouter {
 
 
   // **** LIBRARY FUNCTIONS ****
-  function quote(uint amountA, uint reserveA, uint reserveB) public pure override returns (uint amountB) {
+  function quote(uint amountA, uint reserveA, uint reserveB) external pure override returns (uint amountB) {
     return UniswapV2Library.quote(amountA, reserveA, reserveB);
   }
 
   function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut, uint feeAmount)
-  public
+  external
   pure
   override
   returns (uint amountOut)
@@ -502,7 +502,7 @@ contract ExcaliburRouter is IExcaliburRouter {
   }
 
   function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut, uint feeAmount)
-  public
+  external
   pure
   override
   returns (uint amountIn)
@@ -510,11 +510,11 @@ contract ExcaliburRouter is IExcaliburRouter {
     return UniswapV2Library.getAmountIn(amountOut, reserveIn, reserveOut, feeAmount);
   }
 
-  function getAmountsOut(uint amountIn, address[] memory path) public view returns (uint[] memory amounts) {
+  function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts) {
     return UniswapV2Library.getAmountsOut(factory, amountIn, path);
   }
 
-  function getAmountsIn(uint amountOut, address[] memory path) public view returns (uint[] memory amounts)
+  function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts)
   {
     return UniswapV2Library.getAmountsIn(factory, amountOut, path);
   }
