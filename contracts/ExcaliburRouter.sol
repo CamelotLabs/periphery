@@ -59,8 +59,6 @@ contract ExcaliburRouter is IExcaliburRouter {
   event AllocatedEXCFromFeesCapped(address indexed swapToken, address indexed toToken, uint swapTokenAmount, uint EXCAmount, uint cappedAmount);
 
   receive() external payable {
-    // only accept ETH via fallback from the WETH contract
-    assert(msg.sender == WETH);
   }
 
   function setFeeRebateDisabled(bool feeRebateDisabled_) external {
