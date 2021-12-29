@@ -6,23 +6,28 @@ import 'excalibur-core/contracts/interfaces/IExcaliburV2Factory.sol';
 import 'excalibur-core/contracts/interfaces/IExcaliburV2Pair.sol';
 import 'excalibur-core/contracts/interfaces/IERC20.sol';
 
-import "./interfaces/IPriceConsumer.sol";
 import './interfaces/IExcaliburRouter.sol';
 import './libraries/UniswapV2Library.sol';
 import './libraries/SafeMath.sol';
 import './interfaces/IWETH.sol';
+import "./interfaces/ISwapFeeRebate.sol";
 
 contract ExcaliburRouter is IExcaliburRouter {
   using SafeMath for uint;
 
-  IPriceConsumer public priceConsumer;
+  ISwapFeeRebate public immutable swapFeeRebate;
 
   address public immutable EXC;
   address public immutable override factory;
   address public immutable override WETH;
 
-  uint public feeRefundShare = 100; // 100%
+  bool public feeRebateDisabled;
+
   mapping(address => uint) public accountAccEXCFromFees;
+  uint public curDayTotalAllocatedEXC;
+  uint public curDayStartTime;
+  uint maxDailyEXCAllocation = 1000 ether; // daily cap for EXC allocation from rebate
+
   bytes4 private constant EXC_MINT_SELECTOR = bytes4(keccak256(bytes('mint(address,uint256)')));
 
   uint private unlocked = 1;
@@ -38,34 +43,34 @@ contract ExcaliburRouter is IExcaliburRouter {
     _;
   }
 
-  constructor(address _factory, address _WETH, address _EXC, IPriceConsumer _priceConsumer) public {
+  constructor(address _factory, address _WETH, address _EXC, ISwapFeeRebate _SwapFeeRebate) public {
     factory = _factory;
     WETH = _WETH;
 
-    priceConsumer = _priceConsumer;
+    swapFeeRebate = _SwapFeeRebate;
     EXC = _EXC;
+    curDayStartTime = block.timestamp;
   }
 
   event WithdrawEXCFromFees(address indexed account, uint excAmount);
-  event FeeRefundShareUpdated(uint feeRefundShare, uint newFeeRefundShare);
-  event PriceConsumerUpdated(address priceConsumer);
+  event SetFeeRebateDisabled(bool prevFeeRebateDisabled, bool feeRebateDisabled);
+  event SetMaxDailyEXCAllocation(uint prevMaxDailyEXCAllocation, uint newMaxDailyEXCAllocation);
+  event AllocatedEXCFromFees(address indexed swapToken, address indexed toToken, uint swapTokenAmount, uint EXCAmount);
+  event AllocatedEXCFromFeesCapped(address indexed swapToken, address indexed toToken, uint swapTokenAmount, uint EXCAmount, uint cappedAmount);
 
   receive() external payable {
-    // only accept ETH via fallback from the WETH contract
-    assert(msg.sender == WETH);
   }
 
-  function setPriceConsumer(IPriceConsumer _priceConsumer) external {
+  function setFeeRebateDisabled(bool feeRebateDisabled_) external {
     require(msg.sender == IExcaliburV2Factory(factory).owner(), "ExcaliburRouter: not allowed");
-    priceConsumer = _priceConsumer;
-    emit PriceConsumerUpdated(address(priceConsumer));
+    emit SetFeeRebateDisabled(feeRebateDisabled, feeRebateDisabled_);
+    feeRebateDisabled = feeRebateDisabled_;
   }
 
-  function setFeeRefundShare(uint newFeeRefundShare) external {
-    require(msg.sender == IExcaliburV2Factory(factory).owner(), "ExcaliburRouter: not allowed");
-    require(newFeeRefundShare <= 100, "ExcaliburRouter: feeRefundShare mustn't exceed maximum");
-    emit FeeRefundShareUpdated(feeRefundShare, newFeeRefundShare);
-    feeRefundShare = newFeeRefundShare;
+  function setMaxDailyEXCAllocation(uint _maxDailyEXCAllocation) external {
+    require(msg.sender == IExcaliburV2Factory(factory).owner(), "SwapFeeRebate: not allowed");
+    emit SetMaxDailyEXCAllocation(maxDailyEXCAllocation, _maxDailyEXCAllocation);
+    maxDailyEXCAllocation = _maxDailyEXCAllocation;
   }
 
   function getPair(address token1, address token2) external view returns (address){
@@ -268,39 +273,28 @@ contract ExcaliburRouter is IExcaliburRouter {
   // **** SWAP ****
 
   /**
-   * @dev Calculates the amount of fees in EXC to give back to the user
-   *
-   * Used for transaction fee mining
-   */
-  function getEXCFees(address inputToken, address outputToken, uint outputTokenAmount) public view returns (uint estimatedExcAmount){
-    uint toTokenPriceUSD = priceConsumer.valueOfToTokenUSD(inputToken, outputToken);
-    address pair = IExcaliburV2Factory(factory).getPair(inputToken, outputToken);
-
-    if (toTokenPriceUSD == 0 || pair == address(0)) return 0;
-
-    uint excPrice = priceConsumer.getEXCPriceUSD();
-
-    if (excPrice == 0) return 0;
-
-    // check if token decimals is 18 like the EXC token and adjust it for conversion
-    uint toTokenDecimals = IERC20(outputToken).decimals();
-    if (toTokenDecimals <= 18) {
-      outputTokenAmount = outputTokenAmount.mul(10 ** (18 - toTokenDecimals));
-    }
-    else {
-      outputTokenAmount = outputTokenAmount / (10 ** (toTokenDecimals - 18));
-    }
-
-    uint feeAmountBUSD = outputTokenAmount.mul(toTokenPriceUSD).mul(IExcaliburV2Pair(pair).feeAmount()) / 100000;
-    return feeAmountBUSD.mul(feeRefundShare) / 100 / excPrice;
-  }
-
-  /**
    * @dev Updates harvestable EXC balance for caller
    */
   function _updateAccountAccEXCFromFees(address swapToken, address toToken, uint swapTokenAmount) internal {
-    if(feeRefundShare == 0 ||  msg.sender != tx.origin ) return;
-    accountAccEXCFromFees[msg.sender] += getEXCFees(swapToken, toToken, swapTokenAmount);
+    if(feeRebateDisabled || msg.sender != tx.origin || !isContract(msg.sender)) return;
+    uint EXCAmount = swapFeeRebate.getEXCFees(swapToken, toToken, swapTokenAmount);
+    if(EXCAmount > 0){
+      if(block.timestamp > curDayStartTime.add(1 days)){
+        curDayStartTime = block.timestamp;
+        curDayTotalAllocatedEXC = 0;
+      }
+
+      if(curDayTotalAllocatedEXC.add(EXCAmount) > maxDailyEXCAllocation) {
+        uint cappedAmount = maxDailyEXCAllocation.sub(curDayTotalAllocatedEXC);
+        emit AllocatedEXCFromFeesCapped(swapToken, toToken, swapTokenAmount, EXCAmount, cappedAmount);
+        if(cappedAmount == 0) return;
+        EXCAmount = cappedAmount;
+      }
+
+      accountAccEXCFromFees[msg.sender] += EXCAmount;
+      curDayTotalAllocatedEXC += EXCAmount;
+      emit AllocatedEXCFromFees(swapToken, toToken, swapTokenAmount, EXCAmount);
+    }
   }
 
   /**
@@ -326,6 +320,7 @@ contract ExcaliburRouter is IExcaliburRouter {
 
   // requires the initial amount to have already been sent to the first pair
   function _swap(uint[] memory amounts, address[] memory path, address _to, address referrer) internal {
+    if(!feeRebateDisabled) swapFeeRebate.updateEXCLastPrice();
     for (uint i; i < path.length - 1; i++) {
       (address input, address output) = (path[i], path[i + 1]);
       (address token0,) = UniswapV2Library.sortTokens(input, output);
@@ -403,6 +398,7 @@ contract ExcaliburRouter is IExcaliburRouter {
   // **** SWAP (supporting fee-on-transfer tokens) ****
   // requires the initial amount to have already been sent to the first pair
   function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to, address referrer) internal {
+    if(!feeRebateDisabled) swapFeeRebate.updateEXCLastPrice();
     for (uint i; i < path.length - 1; i++) {
       (address input, address output) = (path[i], path[i + 1]);
       (address token0,) = UniswapV2Library.sortTokens(input, output);
@@ -492,12 +488,12 @@ contract ExcaliburRouter is IExcaliburRouter {
 
 
   // **** LIBRARY FUNCTIONS ****
-  function quote(uint amountA, uint reserveA, uint reserveB) public pure override returns (uint amountB) {
+  function quote(uint amountA, uint reserveA, uint reserveB) external pure override returns (uint amountB) {
     return UniswapV2Library.quote(amountA, reserveA, reserveB);
   }
 
   function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut, uint feeAmount)
-  public
+  external
   pure
   override
   returns (uint amountOut)
@@ -506,7 +502,7 @@ contract ExcaliburRouter is IExcaliburRouter {
   }
 
   function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut, uint feeAmount)
-  public
+  external
   pure
   override
   returns (uint amountIn)
@@ -514,11 +510,11 @@ contract ExcaliburRouter is IExcaliburRouter {
     return UniswapV2Library.getAmountIn(amountOut, reserveIn, reserveOut, feeAmount);
   }
 
-  function getAmountsOut(uint amountIn, address[] memory path) public view returns (uint[] memory amounts) {
+  function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts) {
     return UniswapV2Library.getAmountsOut(factory, amountIn, path);
   }
 
-  function getAmountsIn(uint amountOut, address[] memory path) public view returns (uint[] memory amounts)
+  function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts)
   {
     return UniswapV2Library.getAmountsIn(factory, amountOut, path);
   }

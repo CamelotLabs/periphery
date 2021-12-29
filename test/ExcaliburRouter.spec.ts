@@ -33,9 +33,11 @@ describe('ExcaliburRouter', () => {
   let USD: Contract
   let WETH: Contract
   let EXC: Contract
+  let factoryV2: Contract
   let router: Contract
   let pair: Contract
   let priceConsumer: Contract
+  let swapFeeRebate: Contract
   let feeAmount: BigNumberish
   beforeEach(async function() {
     const fixture = await loadFixture(v2Fixture)
@@ -44,10 +46,12 @@ describe('ExcaliburRouter', () => {
     USD = fixture.USD
     WETH = fixture.WETH
     EXC = fixture.EXC
+    factoryV2 = fixture.factoryV2
     router = fixture.router02
     pair = fixture.pair
     priceConsumer = fixture.priceConsumer
     feeAmount = await fixture.pair.feeAmount()
+    swapFeeRebate = fixture.swapFeeRebate
   })
 
   it('getAmountOut with fee != 3%', async () => {
@@ -75,7 +79,7 @@ describe('ExcaliburRouter', () => {
   })
 
   it('getEXCFees', async () => {
-    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(0)
+    expect(await swapFeeRebate.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(0)
 
     await EXC.approve(router.address, MaxUint256)
     await USD.approve(router.address, MaxUint256)
@@ -90,6 +94,8 @@ describe('ExcaliburRouter', () => {
       MaxUint256,
       overrides
     )
+    await swapFeeRebate.setWhitelistPair(EXC.address, USD.address, await factoryV2.getPair(EXC.address, USD.address), true)
+    await swapFeeRebate.updateEXCLastPrice()
 
     await token0.approve(router.address, MaxUint256)
     await token1.approve(router.address, MaxUint256)
@@ -104,26 +110,36 @@ describe('ExcaliburRouter', () => {
       MaxUint256,
       overrides
     )
+    await router.addLiquidity(
+      token1.address,
+      USD.address,
+      bigNumberify(1000),
+      bigNumberify(20000),
+      0,
+      0,
+      wallet.address,
+      MaxUint256,
+      overrides
+    )
 
-    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(0)
+    expect(await swapFeeRebate.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(0)
 
     var priceFeederToken1 = await deployContract(wallet, PriceFeeder, [0, 10], overrides)
     await priceConsumer.setTokenPriceFeeder(token1.address, USD.address, priceFeederToken1.address)
 
     // outputAmount * outputTokenPriceBUSD * feeAmount * feeRefundShare / excPrice
     await pair.setFeeAmount(300)
-    // Tokens are not whitelisted
-    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(0)
-    await priceConsumer.setWhitelistToken(token0.address, true);
-    await priceConsumer.setWhitelistToken(token1.address, true);
-    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(15).div(10))
+    // pair not whitelisted
+    expect(await swapFeeRebate.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(0)
+    await swapFeeRebate.setWhitelistPair(token0.address, token1.address, pair.address, true);
+    expect(await swapFeeRebate.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(15).div(10))
     await pair.setFeeAmount(600)
-    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(3))
+    expect(await swapFeeRebate.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(3))
 
-    await router.setFeeRefundShare(50)
+    await swapFeeRebate.setFeeRebateShare(50)
     await pair.setFeeAmount(300)
-    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(75).div(100))
+    expect(await swapFeeRebate.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(75).div(100))
     await pair.setFeeAmount(600)
-    expect(await router.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(15).div(10))
+    expect(await swapFeeRebate.getEXCFees(token0.address, token1.address, expandTo18Decimals(100))).to.eq(expandTo18Decimals(15).div(10))
   })
 })

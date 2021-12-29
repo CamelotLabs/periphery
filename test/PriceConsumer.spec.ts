@@ -18,7 +18,7 @@ const overrides = {
   gasLimit: 9999999
 }
 
-describe('ExcaliburRouter', () => {
+describe('PriceConsumer', () => {
   const provider = new MockProvider({
     hardfork: 'istanbul',
     mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
@@ -48,7 +48,7 @@ describe('ExcaliburRouter', () => {
     feeAmount = await fixture.pair.feeAmount()
   })
 
-  describe('getEXCPriceUSD', () => {
+  describe('getTokenPriceUSDUsingPair', () => {
     it('1$', async () => {
       await EXC.approve(router.address, MaxUint256)
       await USD.approve(router.address, MaxUint256)
@@ -63,7 +63,7 @@ describe('ExcaliburRouter', () => {
         MaxUint256,
         overrides
       )
-      expect(await priceConsumer.getEXCPriceUSD()).to.eq(expandTo18Decimals(1))
+      expect(await priceConsumer.getTokenPriceUSDUsingPair(EXC.address)).to.eq(expandTo18Decimals(1))
       expect(await priceConsumer.valueOfTokenUSD(EXC.address)).to.eq(expandTo18Decimals(1))
     })
 
@@ -81,7 +81,7 @@ describe('ExcaliburRouter', () => {
         MaxUint256,
         overrides
       )
-      expect(await priceConsumer.getEXCPriceUSD()).to.eq(expandTo18Decimals(2))
+      expect(await priceConsumer.getTokenPriceUSDUsingPair(EXC.address)).to.eq(expandTo18Decimals(2))
       expect(await priceConsumer.valueOfTokenUSD(EXC.address)).to.eq(expandTo18Decimals(2))
     })
 
@@ -99,7 +99,7 @@ describe('ExcaliburRouter', () => {
         MaxUint256,
         overrides
       )
-      expect(await priceConsumer.getEXCPriceUSD()).to.eq(expandTo18Decimals(5).div(10))
+      expect(await priceConsumer.getTokenPriceUSDUsingPair(EXC.address)).to.eq(expandTo18Decimals(5).div(10))
       expect(await priceConsumer.valueOfTokenUSD(EXC.address)).to.eq(expandTo18Decimals(5).div(10))
     })
   })

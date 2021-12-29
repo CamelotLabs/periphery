@@ -17,22 +17,25 @@ contract PriceConsumerV3 is IPriceConsumer {
   address public immutable override USD; // stable usd coin, will be adapted depending on the used chain
   address public immutable override WETH;
   address public immutable override EXC;
-  
-  mapping(address => bool) whitelistedTokens; // trustable tokens for transaction fee mining
+
+  uint public immutable USD_DECIMALS;
+  uint internal _lastEXCPrice;
 
   // [tokenAddress][quoteAddress] = priceFeederAddress => quoteAddress (WETH,USD)
   mapping(address => mapping(address => address)) public tokenPriceFeeder;
 
+  event SetLastEXCPrice(uint lastEXCPrice, uint newPrice);
   event SetWhitelistToken(address token, bool isWhitelisted);
   event SetOwner(address prevOwner, address newOwner);
   event SetTokenPriceFeeder(address token, address quote, address priceFeeder);
 
-  constructor(address _factory, address _WETH, address _USD, address _EXC) public {
+  constructor(address _factory, address _WETH, address _USD, address _EXC, uint usdDecimals) public {
     owner = msg.sender;
     factory = _factory;
     WETH = _WETH;
     USD = _USD;
     EXC = _EXC;
+    USD_DECIMALS = usdDecimals; // Carefully put the right value !
   }
 
   /**
@@ -43,35 +46,62 @@ contract PriceConsumerV3 is IPriceConsumer {
     _;
   }
 
-  function isWhitelistedToken(address token) external view override returns (bool isWhitelisted) {
-    return whitelistedTokens[token];
+  function lastEXCPrice() external view override returns (uint){
+    return _lastEXCPrice;
   }
 
-  function getTokenFairPriceUSD(address token) public override view returns (uint) {
+  function getTokenFairPriceUSD(address token) external override view returns (uint) {
     return _getTokenFairPriceUSD(token);
   }
 
-  function getWETHFairPriceUSD() public view override returns (uint){
-    return _getWETHFairPriceUSD();
+  function getTokenPriceUSDUsingPair(address token) external override view returns (uint){
+    return _getTokenPriceUSDUsingPair(token);
   }
 
-  function getEXCPriceUSD() external view override returns (uint valueInUSD) {
-    return _getTokenPriceUSDUsingPair(EXC);
+  function getTokenMinPriceUSD(address token) external override view returns (uint) {
+    if (token == USD) return 10 ** USD_DECIMALS;
+
+    uint fairPriceUSD = _getTokenFairPriceUSD(token);
+    if (fairPriceUSD == 0) return 0;
+    // Only manage tokens from which a fair price can be fetch
+    uint calculatedPriceUSD = _getTokenPriceUSDUsingPair(token);
+    if (calculatedPriceUSD == 0) return 0;
+    return fairPriceUSD < calculatedPriceUSD ? fairPriceUSD : calculatedPriceUSD;
   }
 
-  function valueOfToTokenUSD(address fromToken, address toToken) external view override returns(uint valueInUSD) {
-    if(!whitelistedTokens[fromToken] || !whitelistedTokens[toToken]) return 0;
-    return _valueOfTokenUSD(toToken);
+  function getEXCMaxPriceUSD() external override returns (uint){
+    uint calculatedPriceUSD = _getTokenPriceUSDUsingPair(EXC);
+    if (_lastEXCPrice < calculatedPriceUSD) {
+      emit SetLastEXCPrice(_lastEXCPrice, calculatedPriceUSD);
+      _lastEXCPrice = calculatedPriceUSD;
+    }
+    return _lastEXCPrice;
   }
 
   function valueOfTokenUSD(address token) external view override returns (uint valueInUSD) {
     return _valueOfTokenUSD(token);
   }
 
+  function setTokenPriceFeeder(address token, address quote, address priceFeeder) external onlyOwner {
+    require(quote == USD || quote == WETH && token != quote, "PriceConsumerV3: invalid quote");
+    tokenPriceFeeder[token][quote] = priceFeeder;
+    emit SetTokenPriceFeeder(token, quote, priceFeeder);
+  }
+
+  function setLastEXCPrice(uint price, uint decimals) external onlyOwner {
+    price = price.mul(10 ** USD_DECIMALS) / (10 ** decimals);
+    emit SetLastEXCPrice(_lastEXCPrice, price);
+    _lastEXCPrice = price;
+  }
+
+  function setOwner(address _owner) external onlyOwner {
+    emit SetOwner(owner, _owner);
+    owner = _owner;
+  }
+
   function _valueOfTokenUSD(address token) internal view returns (uint valueInUSD) {
     if (token == WETH) return _getWETHFairPriceUSD();
-    if (token == USD) return 1e18;
-    if (token == EXC) return _getTokenPriceUSDUsingPair(token);
+    if (token == USD) return 10 ** USD_DECIMALS;
 
     uint fairPrice = _getTokenFairPriceUSD(token);
     if (fairPrice > 0) return fairPrice;
@@ -90,21 +120,22 @@ contract PriceConsumerV3 is IPriceConsumer {
     if (priceFeeder == address(0)) return 0;
 
     uint priceDecimals = uint(AggregatorV3Interface(priceFeeder).decimals());
-    (,int price,,,) = AggregatorV3Interface(priceFeeder).latestRoundData();
-    uint valueInUSD = 0;
-
-    // check if price decimals is 18 like the EXC token and adjust it for conversion
-    if (priceDecimals <= 18) {
-      valueInUSD = uint(price).mul(10 ** (18 - priceDecimals));
-    }
-    else {
-      valueInUSD = uint(price) / (10 ** (priceDecimals - 18));
-    }
+    (,int price,,uint updatedAt,) = AggregatorV3Interface(priceFeeder).latestRoundData();
+    if (price <= 0 || updatedAt.add(1 days + 1 hours) < block.timestamp) return 0;
 
     if (quote == WETH) {
-      return valueInUSD.mul(_getWETHFairPriceUSD()) / 1e18;
+      return uint(price).mul(_getWETHFairPriceUSD()) / 10 ** priceDecimals;
     }
-    return valueInUSD;
+
+    uint _usdDecimals = USD_DECIMALS;
+    if (priceDecimals < _usdDecimals) {
+      return uint(price).mul(10 ** (_usdDecimals - priceDecimals));
+    }
+    else if (priceDecimals > _usdDecimals) {
+      return uint(price) / (10 ** (priceDecimals - _usdDecimals));
+    }
+
+    return uint(price);
   }
 
   /**
@@ -112,18 +143,20 @@ contract PriceConsumerV3 is IPriceConsumer {
    */
   function _getWETHFairPriceUSD() internal view returns (uint){
     address priceFeeder = tokenPriceFeeder[WETH][USD];
-    if (priceFeeder == address(0)) return _getTokenPriceUSDUsingPair(WETH);
+    if (priceFeeder == address(0)) return 0;
 
     uint priceDecimals = uint(AggregatorV3Interface(priceFeeder).decimals());
-    (,int price,,,) = AggregatorV3Interface(priceFeeder).latestRoundData();
-    uint valueInUSD = 0;
-    if (priceDecimals <= 18) {
-      valueInUSD = uint(price).mul(10 ** (18 - priceDecimals));
+    (,int price,,uint updatedAt,) = AggregatorV3Interface(priceFeeder).latestRoundData();
+    if (price <= 0 || updatedAt.add(1 days + 1 hours) < block.timestamp) return 0;
+
+    uint _usdDecimals = USD_DECIMALS;
+    if (priceDecimals < _usdDecimals) {
+      return uint(price).mul(10 ** (_usdDecimals - priceDecimals));
     }
-    else {
-      valueInUSD = uint(price) / (10 ** (priceDecimals - 18));
+    else if (priceDecimals > _usdDecimals) {
+      return uint(price) / (10 ** (priceDecimals - _usdDecimals));
     }
-    return valueInUSD;
+    return uint(price);
   }
 
   /**
@@ -135,7 +168,7 @@ contract PriceConsumerV3 is IPriceConsumer {
     address quote = USD;
     address _pair = IExcaliburV2Factory(factory).getPair(token, quote);
     if (_pair == address(0)) {
-      if(token == WETH) return 0;
+      if (token == WETH) return 0;
 
       quote = WETH;
       _pair = IExcaliburV2Factory(factory).getPair(token, quote);
@@ -143,51 +176,21 @@ contract PriceConsumerV3 is IPriceConsumer {
     }
     IExcaliburV2Pair pair = IExcaliburV2Pair(_pair);
 
-    uint quoteDecimals = IERC20(quote).decimals();
-
     (uint reserve0, uint reserve1,) = pair.getReserves();
-    if(reserve0 == 0 || reserve1 == 0) return 0;
+    if (reserve0 == 0 || reserve1 == 0) return 0;
 
     uint priceInQuote = 0;
-    // check if price decimals is 18 like the EXC token and adjust it for conversion
-    if (pair.token0() == quote) {
-      if (quoteDecimals <= 18) {
-        reserve0 = reserve0.mul(10 ** (18 - quoteDecimals));
-      }
-      else {
-        reserve0 = reserve0 / (10 ** (quoteDecimals - 18));
-      }
-      priceInQuote = reserve0.mul(1e18) / reserve1;
+    address token0 = pair.token0();
+    if (token0 == quote) {
+      priceInQuote = reserve0.mul(10 ** uint(IERC20(pair.token1()).decimals())) / reserve1;
     }
-    else{
-      if (quoteDecimals <= 18) {
-      reserve1 = reserve1.mul(10 ** (18 - quoteDecimals));
-      }
-      else {
-        reserve1 = reserve1 / (10 ** (quoteDecimals - 18));
-      }
-      priceInQuote = reserve1.mul(1e18) / reserve0;
+    else {
+      priceInQuote = reserve1.mul(10 ** uint(IERC20(token0).decimals())) / reserve0;
     }
 
     if (quote == WETH) {
-      return priceInQuote.mul(_getWETHFairPriceUSD()) / 1e18;
+      return priceInQuote.mul(_getWETHFairPriceUSD()) / (10 ** uint(IERC20(quote).decimals()));
     }
     return priceInQuote;
-  }
-
-  function setOwner(address _owner) external onlyOwner {
-    emit SetOwner(owner, _owner);
-    owner = _owner;
-  }
-
-  function setWhitelistToken(address token, bool whitelist) external onlyOwner {
-    whitelistedTokens[token] = whitelist;
-    emit SetWhitelistToken(token, whitelist);
-  }
-
-  function setTokenPriceFeeder(address token, address quote, address priceFeeder) external onlyOwner {
-    require(quote == USD || quote == WETH, "PriceConsumerV3: invalid quote");
-    tokenPriceFeeder[token][quote] = priceFeeder;
-    emit SetTokenPriceFeeder(token, quote, priceFeeder);
   }
 }
