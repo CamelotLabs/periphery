@@ -51,7 +51,7 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
   await factoryV2.setOwnerFeeShare(16666); // match uniswap config
 
   // deploy router
-  const priceConsumer = await deployContract(wallet, PriceConsumer, [factoryV2.address, WETH.address, USD.address, EXC.address], overrides)
+  const priceConsumer = await deployContract(wallet, PriceConsumer, [factoryV2.address, WETH.address, USD.address, EXC.address, 18], overrides)
   const swapFeeRebate = await deployContract(wallet, SwapFeeRebate, [factoryV2.address, EXC.address, priceConsumer.address], overrides);
   const router02 = await deployContract(wallet, ExcaliburRouter, [factoryV2.address, WETH.address, EXC.address, swapFeeRebate.address], overrides)
 
