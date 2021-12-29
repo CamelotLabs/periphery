@@ -21,6 +21,8 @@ contract ExcaliburRouter is IExcaliburRouter {
   address public immutable override factory;
   address public immutable override WETH;
 
+  address public operator;
+
   bool public feeRebateDisabled;
 
   mapping(address => uint) public accountAccEXCFromFees;
@@ -44,6 +46,8 @@ contract ExcaliburRouter is IExcaliburRouter {
   }
 
   constructor(address _factory, address _WETH, address _EXC, ISwapFeeRebate _SwapFeeRebate) public {
+    operator = msg.sender;
+
     factory = _factory;
     WETH = _WETH;
 
@@ -57,20 +61,34 @@ contract ExcaliburRouter is IExcaliburRouter {
   event SetMaxDailyEXCAllocation(uint prevMaxDailyEXCAllocation, uint newMaxDailyEXCAllocation);
   event AllocatedEXCFromFees(address indexed swapToken, address indexed toToken, uint swapTokenAmount, uint EXCAmount);
   event AllocatedEXCFromFeesCapped(address indexed swapToken, address indexed toToken, uint swapTokenAmount, uint EXCAmount, uint cappedAmount);
+  event OperatorTransferred(address indexed previousOwner, address indexed newOwner);
 
   receive() external payable {
   }
 
   function setFeeRebateDisabled(bool feeRebateDisabled_) external {
-    require(msg.sender == IExcaliburV2Factory(factory).owner(), "ExcaliburRouter: not allowed");
+    require(msg.sender == operator, "ExcaliburRouter: not allowed");
     emit SetFeeRebateDisabled(feeRebateDisabled, feeRebateDisabled_);
     feeRebateDisabled = feeRebateDisabled_;
   }
 
   function setMaxDailyEXCAllocation(uint _maxDailyEXCAllocation) external {
-    require(msg.sender == IExcaliburV2Factory(factory).owner(), "SwapFeeRebate: not allowed");
+    require(msg.sender == IExcaliburV2Factory(factory).owner(), "ExcaliburRouter: not allowed");
     emit SetMaxDailyEXCAllocation(maxDailyEXCAllocation, _maxDailyEXCAllocation);
     maxDailyEXCAllocation = _maxDailyEXCAllocation;
+  }
+
+
+  /**
+   * @dev Transfers the operator of the contract to a new account (`newOperator`).
+   *
+   * Must only be called by the current operator.
+   */
+  function transferOperator(address newOperator) external {
+    require(msg.sender == operator, "ExcaliburRouter: not allowed");
+    require(newOperator != address(0), "transferOperator: new operator is the zero address");
+    emit OperatorTransferred(operator, newOperator);
+    operator = newOperator;
   }
 
   function getPair(address token1, address token2) external view returns (address){
