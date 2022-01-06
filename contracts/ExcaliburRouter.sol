@@ -294,7 +294,7 @@ contract ExcaliburRouter is IExcaliburRouter {
    * @dev Updates harvestable EXC balance for caller
    */
   function _updateAccountAccEXCFromFees(address swapToken, address toToken, uint swapTokenAmount) internal {
-    if(feeRebateDisabled || msg.sender != tx.origin || !isContract(msg.sender)) return;
+    if(feeRebateDisabled || msg.sender != tx.origin || isContract(msg.sender)) return;
     uint EXCAmount = swapFeeRebate.getEXCFees(swapToken, toToken, swapTokenAmount);
     if(EXCAmount > 0){
       if(block.timestamp > curDayStartTime.add(1 days)){
