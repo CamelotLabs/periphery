@@ -28,7 +28,7 @@ contract ExcaliburRouter is IExcaliburRouter {
   mapping(address => uint) public accountAccEXCFromFees;
   uint public curDayTotalAllocatedEXC;
   uint public curDayStartTime;
-  uint maxDailyEXCAllocation = 1000 ether; // daily cap for EXC allocation from rebate
+  uint public maxDailyEXCAllocation = 1000 ether; // daily cap for EXC allocation from rebate
 
   bytes4 private constant EXC_MINT_SELECTOR = bytes4(keccak256(bytes('mint(address,uint256)')));
 
