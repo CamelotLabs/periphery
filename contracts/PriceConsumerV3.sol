@@ -69,7 +69,7 @@ contract PriceConsumerV3 is IPriceConsumer {
     return fairPriceUSD < calculatedPriceUSD ? fairPriceUSD : calculatedPriceUSD;
   }
 
-  function getEXCMaxPriceUSD() external override returns (uint){
+  function getEXCMaxPriceUSD() public override returns (uint){
     uint calculatedPriceUSD = _getTokenPriceUSDUsingPair(EXC);
     if (_lastEXCPrice < calculatedPriceUSD) {
       emit SetLastEXCPrice(_lastEXCPrice, calculatedPriceUSD);
@@ -92,6 +92,7 @@ contract PriceConsumerV3 is IPriceConsumer {
     price = price.mul(10 ** USD_DECIMALS) / (10 ** decimals);
     emit SetLastEXCPrice(_lastEXCPrice, price);
     _lastEXCPrice = price;
+    getEXCMaxPriceUSD();
   }
 
   function setOwner(address _owner) external onlyOwner {
