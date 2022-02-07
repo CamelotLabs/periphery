@@ -121,8 +121,8 @@ contract PriceConsumerV3 is IPriceConsumer {
     if (priceFeeder == address(0)) return 0;
 
     uint priceDecimals = uint(AggregatorV3Interface(priceFeeder).decimals());
-    (,int price,,uint updatedAt,) = AggregatorV3Interface(priceFeeder).latestRoundData();
-    if (price <= 0 || updatedAt.add(1 days + 1 hours) < block.timestamp) return 0;
+    (uint80 roundId,int price,,,uint80 answeredInRound) = AggregatorV3Interface(priceFeeder).latestRoundData();
+    if (price <= 0 || answeredInRound < roundId) return 0;
 
     if (quote == WETH) {
       return uint(price).mul(_getWETHFairPriceUSD()) / 10 ** priceDecimals;
@@ -147,8 +147,8 @@ contract PriceConsumerV3 is IPriceConsumer {
     if (priceFeeder == address(0)) return 0;
 
     uint priceDecimals = uint(AggregatorV3Interface(priceFeeder).decimals());
-    (,int price,,uint updatedAt,) = AggregatorV3Interface(priceFeeder).latestRoundData();
-    if (price <= 0 || updatedAt.add(1 days + 1 hours) < block.timestamp) return 0;
+    (uint80 roundId,int price,,,uint80 answeredInRound) = AggregatorV3Interface(priceFeeder).latestRoundData();
+    if (price <= 0 || answeredInRound < roundId) return 0;
 
     uint _usdDecimals = USD_DECIMALS;
     if (priceDecimals < _usdDecimals) {
