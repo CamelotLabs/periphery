@@ -21,6 +21,9 @@ contract PriceConsumerV3 is IPriceConsumer {
   uint public immutable USD_DECIMALS;
   uint internal _lastEXCPrice;
 
+  // token => quote address to use
+  mapping(address => address) public tokensQuote;
+
   // [tokenAddress][quoteAddress] = priceFeederAddress => quoteAddress (WETH,USD)
   mapping(address => mapping(address => address)) public tokenPriceFeeder;
 
@@ -28,6 +31,7 @@ contract PriceConsumerV3 is IPriceConsumer {
   event SetWhitelistToken(address token, bool isWhitelisted);
   event SetOwner(address prevOwner, address newOwner);
   event SetTokenPriceFeeder(address token, address quote, address priceFeeder);
+  event SetTokenQuote(address token, address quote);
 
   constructor(address _factory, address _WETH, address _USD, address _EXC, uint usdDecimals) public {
     owner = msg.sender;
@@ -80,6 +84,12 @@ contract PriceConsumerV3 is IPriceConsumer {
 
   function valueOfTokenUSD(address token) external view override returns (uint valueInUSD) {
     return _valueOfTokenUSD(token);
+  }
+
+  function setTokenQuote(address token, address quote) external onlyOwner {
+    require(quote == USD || quote == WETH && token != quote, "PriceConsumerV3: invalid quote");
+    tokensQuote[token] = quote;
+    emit SetTokenQuote(token, quote);
   }
 
   function setTokenPriceFeeder(address token, address quote, address priceFeeder) external onlyOwner {
@@ -166,15 +176,10 @@ contract PriceConsumerV3 is IPriceConsumer {
    * Called if no priceFeeder is available for this token
    */
   function _getTokenPriceUSDUsingPair(address token) internal view returns (uint){
-    address quote = USD;
+    address quote = tokensQuote[token];
+    if (quote == address(0)) return 0;
     address _pair = IExcaliburV2Factory(factory).getPair(token, quote);
-    if (_pair == address(0)) {
-      if (token == WETH) return 0;
-
-      quote = WETH;
-      _pair = IExcaliburV2Factory(factory).getPair(token, quote);
-      if (_pair == address(0)) return 0;
-    }
+    if (_pair == address(0)) return 0;
     IExcaliburV2Pair pair = IExcaliburV2Pair(_pair);
 
     (uint reserve0, uint reserve1,) = pair.getReserves();
