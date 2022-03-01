@@ -87,13 +87,13 @@ contract PriceConsumerV3 is IPriceConsumer {
   }
 
   function setTokenQuote(address token, address quote) external onlyOwner {
-    require(quote == USD || quote == WETH && token != quote, "PriceConsumerV3: invalid quote");
+    require((quote == USD || quote == WETH) && token != quote, "PriceConsumerV3: invalid quote");
     tokensQuote[token] = quote;
     emit SetTokenQuote(token, quote);
   }
 
   function setTokenPriceFeeder(address token, address quote, address priceFeeder) external onlyOwner {
-    require(quote == USD || quote == WETH && token != quote, "PriceConsumerV3: invalid quote");
+    require((quote == USD || quote == WETH) && token != quote, "PriceConsumerV3: invalid quote");
     tokenPriceFeeder[token][quote] = priceFeeder;
     emit SetTokenPriceFeeder(token, quote, priceFeeder);
   }
