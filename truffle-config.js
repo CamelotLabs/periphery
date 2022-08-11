@@ -43,8 +43,29 @@ module.exports = {
       network_id: "*",       // Any network (default: none)
     },
     avalancheLocal: {
-      provider: () => new HDWalletProvider(MNENOMIC, 'http://127.0.0.1:9650/ext/bc/C/rpc'),
+      provider: () => new HDWalletProvider(MNENOMIC, 'http://192.168.1.14:9650/ext/bc/C/rpc'),
       network_id: "*",
+      timeoutBlocks: 1200,
+      skipDryRun: true,
+      from: process.env.DEPLOYER_ADDRESS.toString().trim(),
+    },
+    fuji: {
+      provider: () => new HDWalletProvider(MNENOMIC, 'https://api.avax-test.network/ext/bc/C/rpc'),
+      network_id: "*",
+      timeoutBlocks: 1200,
+      skipDryRun: true,
+      from: process.env.DEPLOYER_ADDRESS.toString().trim(),
+    },
+    ftmTestnet: {
+      provider: () => new HDWalletProvider(MNENOMIC, 'https://rpc.testnet.fantom.network/'),
+      network_id: "4002",
+      timeoutBlocks: 1200,
+      skipDryRun: true,
+      from: process.env.DEPLOYER_ADDRESS.toString().trim(),
+    },
+    ftm: {
+      provider: () => new HDWalletProvider(MNENOMIC, 'https://solitary-floral-pine.fantom.quiknode.pro/2190044bffc7c37cfd5695ef53401b1bde72724a/'),
+      network_id: "250",
       timeoutBlocks: 1200,
       skipDryRun: true,
       from: process.env.DEPLOYER_ADDRESS.toString().trim(),
@@ -67,7 +88,7 @@ module.exports = {
   ],
 
   api_keys: {
-    etherscan: process.env.API_KEY.toString().trim(),
+    ftmscan: process.env.API_KEY.toString().trim(),
   },
 
   // Configure your compilers

@@ -22,21 +22,6 @@ contract RouterEventEmitter {
         emit Amounts(abi.decode(returnData, (uint[])));
     }
 
-    function swapTokensForExactTokens(
-        address router,
-        uint amountOut,
-        uint amountInMax,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external {
-        (bool success, bytes memory returnData) = router.delegatecall(abi.encodeWithSelector(
-            IExcaliburRouter(router).swapTokensForExactTokens.selector, amountOut, amountInMax, path, to, address(0), false, deadline
-        ));
-        assert(success);
-        emit Amounts(abi.decode(returnData, (uint[])));
-    }
-
     function swapExactETHForTokens(
         address router,
         uint amountOutMin,
@@ -46,21 +31,6 @@ contract RouterEventEmitter {
     ) external payable {
         (bool success, bytes memory returnData) = router.delegatecall(abi.encodeWithSelector(
             IExcaliburRouter(router).swapExactETHForTokensSupportingFeeOnTransferTokens.selector, amountOutMin, path, to, address(0), false, deadline
-        ));
-        assert(success);
-        emit Amounts(abi.decode(returnData, (uint[])));
-    }
-
-    function swapTokensForExactETH(
-        address router,
-        uint amountOut,
-        uint amountInMax,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external {
-        (bool success, bytes memory returnData) = router.delegatecall(abi.encodeWithSelector(
-            IExcaliburRouter(router).swapTokensForExactETH.selector, amountOut, amountInMax, path, to, address(0), false, deadline
         ));
         assert(success);
         emit Amounts(abi.decode(returnData, (uint[])));
@@ -81,17 +51,4 @@ contract RouterEventEmitter {
         emit Amounts(abi.decode(returnData, (uint[])));
     }
 
-    function swapETHForExactTokens(
-        address router,
-        uint amountOut,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external payable {
-        (bool success, bytes memory returnData) = router.delegatecall(abi.encodeWithSelector(
-            IExcaliburRouter(router).swapETHForExactTokens.selector, amountOut, path, to, address(0), false, deadline
-        ));
-        assert(success);
-        emit Amounts(abi.decode(returnData, (uint[])));
-    }
 }

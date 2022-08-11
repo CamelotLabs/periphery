@@ -9,11 +9,9 @@ import IExcaliburV2Pair from 'excalibur-core/build/contracts/IExcaliburV2Pair.js
 
 import ERC20 from '../../build/contracts/ERC20.json'
 import WETH9 from '../../build/contracts/WETH9.json'
-import ExcaliburRouter from '../../build/contracts/ExcaliburRouter.json'
-import PriceConsumer from '../../build/contracts/PriceConsumerV3.json'
-import SwapFeeRebate from '../../build/contracts/SwapFeeRebate.json'
+import ExcaliburRouter from '../../build/contracts/ExcaliburV2Router.json'
 import RouterEventEmitter from '../../build/contracts/RouterEventEmitter.json'
-import {keccak256, zeroAddress} from "ethereumjs-util";
+import {zeroAddress} from "ethereumjs-util";
 
 const overrides = {
   gasLimit: 9999999
@@ -30,8 +28,6 @@ interface V2Fixture {
   router02: Contract
   routerEventEmitter: Contract
   router: Contract
-  priceConsumer: Contract
-  swapFeeRebate: Contract
   pair: Contract
   WETHPair: Contract
 }
@@ -51,9 +47,7 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
   await factoryV2.setOwnerFeeShare(16666); // match uniswap config
 
   // deploy router
-  const priceConsumer = await deployContract(wallet, PriceConsumer, [factoryV2.address, WETH.address, USD.address, EXC.address, 18], overrides)
-  const swapFeeRebate = await deployContract(wallet, SwapFeeRebate, [factoryV2.address, EXC.address, priceConsumer.address], overrides);
-  const router02 = await deployContract(wallet, ExcaliburRouter, [factoryV2.address, WETH.address, EXC.address, swapFeeRebate.address], overrides)
+  const router02 = await deployContract(wallet, ExcaliburRouter, [factoryV2.address, WETH.address], overrides)
 
   // event emitter for testing
   const routerEventEmitter = await deployContract(wallet, RouterEventEmitter, [])
@@ -62,7 +56,7 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
   await factoryV2.createPair(tokenA.address, tokenB.address)
   const pairAddress = await factoryV2.getPair(tokenA.address, tokenB.address)
   const pair = new Contract(pairAddress, JSON.stringify(IExcaliburV2Pair.abi), provider).connect(wallet)
-  await pair.setFeeAmount(300); // match uniswap config
+  await pair.setFeeAmount(300, 300); // match uniswap config
 
   const token0Address = await pair.token0()
   const token0 = tokenA.address === token0Address ? tokenA : tokenB
@@ -82,8 +76,6 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
     router02,
     router: router02, // the default router, 01 had a minor bug
     routerEventEmitter,
-    priceConsumer,
-    swapFeeRebate,
     pair,
     WETHPair
   }

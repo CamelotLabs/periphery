@@ -12,25 +12,10 @@ import './libraries/SafeMath.sol';
 import './interfaces/IWETH.sol';
 import "./interfaces/ISwapFeeRebate.sol";
 
-contract ExcaliburRouter is IExcaliburRouter {
+contract ExcaliburV2Router is IExcaliburRouter {
   using SafeMath for uint;
-
-  ISwapFeeRebate public immutable swapFeeRebate;
-
-  address public immutable EXC;
   address public immutable override factory;
   address public immutable override WETH;
-
-  address public operator;
-
-  bool public feeRebateDisabled;
-
-  mapping(address => uint) public accountAccEXCFromFees;
-  uint public curDayTotalAllocatedEXC;
-  uint public curDayStartTime;
-  uint public maxDailyEXCAllocation = 1000 ether; // daily cap for EXC allocation from rebate
-
-  bytes4 private constant EXC_MINT_SELECTOR = bytes4(keccak256(bytes('mint(address,uint256)')));
 
   uint private unlocked = 1;
   modifier lock() {
@@ -45,50 +30,11 @@ contract ExcaliburRouter is IExcaliburRouter {
     _;
   }
 
-  constructor(address _factory, address _WETH, address _EXC, ISwapFeeRebate _SwapFeeRebate) public {
-    operator = msg.sender;
-
+  constructor(address _factory, address _WETH) public {
     factory = _factory;
     WETH = _WETH;
-
-    swapFeeRebate = _SwapFeeRebate;
-    EXC = _EXC;
-    curDayStartTime = block.timestamp;
   }
-
-  event WithdrawEXCFromFees(address indexed account, uint excAmount);
-  event SetFeeRebateDisabled(bool prevFeeRebateDisabled, bool feeRebateDisabled);
-  event SetMaxDailyEXCAllocation(uint prevMaxDailyEXCAllocation, uint newMaxDailyEXCAllocation);
-  event AllocatedEXCFromFees(address indexed swapToken, address indexed toToken, uint swapTokenAmount, uint EXCAmount);
-  event AllocatedEXCFromFeesCapped(address indexed swapToken, address indexed toToken, uint swapTokenAmount, uint EXCAmount, uint cappedAmount);
-  event OperatorTransferred(address indexed previousOwner, address indexed newOwner);
-
   receive() external payable {
-  }
-
-  function setFeeRebateDisabled(bool feeRebateDisabled_) external {
-    require(msg.sender == operator, "ExcaliburRouter: not allowed");
-    emit SetFeeRebateDisabled(feeRebateDisabled, feeRebateDisabled_);
-    feeRebateDisabled = feeRebateDisabled_;
-  }
-
-  function setMaxDailyEXCAllocation(uint _maxDailyEXCAllocation) external {
-    require(msg.sender == IExcaliburV2Factory(factory).owner(), "ExcaliburRouter: not allowed");
-    emit SetMaxDailyEXCAllocation(maxDailyEXCAllocation, _maxDailyEXCAllocation);
-    maxDailyEXCAllocation = _maxDailyEXCAllocation;
-  }
-
-
-  /**
-   * @dev Transfers the operator of the contract to a new account (`newOperator`).
-   *
-   * Must only be called by the current operator.
-   */
-  function transferOperator(address newOperator) external {
-    require(msg.sender == operator, "ExcaliburRouter: not allowed");
-    require(newOperator != address(0), "transferOperator: new operator is the zero address");
-    emit OperatorTransferred(operator, newOperator);
-    operator = newOperator;
   }
 
   function getPair(address token1, address token2) external view returns (address){
@@ -290,145 +236,20 @@ contract ExcaliburRouter is IExcaliburRouter {
 
   // **** SWAP ****
 
-  /**
-   * @dev Updates harvestable EXC balance for caller
-   */
-  function _updateAccountAccEXCFromFees(address swapToken, address toToken, uint swapTokenAmount) internal {
-    if(feeRebateDisabled || msg.sender != tx.origin || isContract(msg.sender)) return;
-    uint EXCAmount = swapFeeRebate.getEXCFees(swapToken, toToken, swapTokenAmount);
-    if(EXCAmount > 0){
-      if(block.timestamp > curDayStartTime.add(1 days)){
-        curDayStartTime = block.timestamp;
-        curDayTotalAllocatedEXC = 0;
-      }
-
-      if(curDayTotalAllocatedEXC.add(EXCAmount) > maxDailyEXCAllocation) {
-        uint cappedAmount = maxDailyEXCAllocation.sub(curDayTotalAllocatedEXC);
-        emit AllocatedEXCFromFeesCapped(swapToken, toToken, swapTokenAmount, EXCAmount, cappedAmount);
-        if(cappedAmount == 0) return;
-        EXCAmount = cappedAmount;
-      }
-
-      accountAccEXCFromFees[msg.sender] += EXCAmount;
-      curDayTotalAllocatedEXC += EXCAmount;
-      emit AllocatedEXCFromFees(swapToken, toToken, swapTokenAmount, EXCAmount);
-    }
-  }
-
-  /**
-   * @dev EXC minting for transaction fee mining
-   */
-  function _safeMintExc(address to, uint value) private {
-    (bool success, bytes memory data) = EXC.call(abi.encodeWithSelector(EXC_MINT_SELECTOR, to, value));
-    require(success && (data.length == 0 || abi.decode(data, (bool))), 'ExcaliburV2Pair: MINT_FAILED');
-  }
-
-  /**
-   * @dev Claim EXC rewards from transaction fee mining
-   */
-  function withdrawAccEXCFromFees() external {
-    require(msg.sender == tx.origin && !isContract(msg.sender), "contracts not allowed");
-
-    uint excAmount = accountAccEXCFromFees[msg.sender];
-    accountAccEXCFromFees[msg.sender] = 0;
-
-    _safeMintExc(msg.sender, excAmount);
-    emit WithdrawEXCFromFees(msg.sender, excAmount);
-  }
-
-  // requires the initial amount to have already been sent to the first pair
-  function _swap(uint[] memory amounts, address[] memory path, address _to, address referrer) internal {
-    if(!feeRebateDisabled) swapFeeRebate.updateEXCLastPrice();
-    for (uint i; i < path.length - 1; i++) {
-      (address input, address output) = (path[i], path[i + 1]);
-      (address token0,) = UniswapV2Library.sortTokens(input, output);
-      uint amountOut = amounts[i + 1];
-      (uint amount0Out, uint amount1Out) = input == token0 ? (uint(0), amountOut) : (amountOut, uint(0));
-      address to = i < path.length - 2 ? UniswapV2Library.pairFor(factory, output, path[i + 2]) : _to;
-
-      _updateAccountAccEXCFromFees(input, output, amountOut);
-
-      IExcaliburV2Pair pair = IExcaliburV2Pair(UniswapV2Library.pairFor(factory, input, output));
-      pair.swap(amount0Out, amount1Out, to, new bytes(0), referrer);
-    }
-  }
-
-  function swapTokensForExactTokens(
-    uint amountOut,
-    uint amountInMax,
-    address[] calldata path,
-    address to,
-    address referrer,
-    uint deadline
-  ) external override lock ensure(deadline) returns (uint[] memory amounts) {
-    amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
-    require(amounts[0] <= amountInMax, 'ExcaliburRouter: EXCESSIVE_INPUT_AMOUNT');
-
-    TransferHelper.safeTransferFrom(
-      path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]
-    );
-    _swap(amounts, path, to, referrer);
-  }
-
-  function swapTokensForExactETH(
-    uint amountOut,
-    uint amountInMax,
-    address[] calldata path,
-    address to,
-    address referrer,
-    uint deadline
-  )
-  external
-  override
-  lock ensure(deadline)
-  returns (uint[] memory amounts)
-  {
-    require(path[path.length - 1] == WETH, 'ExcaliburRouter: INVALID_PATH');
-    amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
-    require(amounts[0] <= amountInMax, 'ExcaliburRouter: EXCESSIVE_INPUT_AMOUNT');
-
-    TransferHelper.safeTransferFrom(
-      path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]
-    );
-    _swap(amounts, path, address(this), referrer);
-    IWETH(WETH).withdraw(amounts[amounts.length - 1]);
-    TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
-  }
-
-  function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, address referrer, uint deadline)
-  external
-  override
-  payable
-  lock ensure(deadline)
-  returns (uint[] memory amounts)
-  {
-    require(path[0] == WETH, 'ExcaliburRouter: INVALID_PATH');
-    amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
-    require(amounts[0] <= msg.value, 'ExcaliburRouter: EXCESSIVE_INPUT_AMOUNT');
-
-    IWETH(WETH).deposit{value : amounts[0]}();
-    assert(IWETH(WETH).transfer(UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]));
-    _swap(amounts, path, to, referrer);
-    // refund dust eth, if any
-    if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
-  }
-
   // **** SWAP (supporting fee-on-transfer tokens) ****
   // requires the initial amount to have already been sent to the first pair
   function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to, address referrer) internal {
-    if(!feeRebateDisabled) swapFeeRebate.updateEXCLastPrice();
     for (uint i; i < path.length - 1; i++) {
       (address input, address output) = (path[i], path[i + 1]);
       (address token0,) = UniswapV2Library.sortTokens(input, output);
       IExcaliburV2Pair pair = IExcaliburV2Pair(UniswapV2Library.pairFor(factory, input, output));
       uint amountOutput;
       {// scope to avoid stack too deep errors
-        (uint reserve0, uint reserve1,) = pair.getReserves();
-        if (input != token0) (reserve0, reserve1) = (reserve1, reserve0);
+        (uint reserve0, uint reserve1,,) = pair.getReserves();
         // permute values to force reserve0 == inputReserve
+        if (input != token0) (reserve0, reserve1) = (reserve1, reserve0);
         uint amountInput = IERC20(input).balanceOf(address(pair)).sub(reserve0);
-        amountOutput = UniswapV2Library.getAmountOut(amountInput, reserve0, reserve1, pair.feeAmount());
-        _updateAccountAccEXCFromFees(input, output, amountOutput);
+        amountOutput = pair.getAmountOut(amountInput, input);
       }
 
       (uint amount0Out, uint amount1Out) = input == token0 ? (uint(0), amountOutput) : (amountOutput, uint(0));
@@ -510,30 +331,7 @@ contract ExcaliburRouter is IExcaliburRouter {
     return UniswapV2Library.quote(amountA, reserveA, reserveB);
   }
 
-  function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut, uint feeAmount)
-  external
-  pure
-  override
-  returns (uint amountOut)
-  {
-    return UniswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut, feeAmount);
-  }
-
-  function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut, uint feeAmount)
-  external
-  pure
-  override
-  returns (uint amountIn)
-  {
-    return UniswapV2Library.getAmountIn(amountOut, reserveIn, reserveOut, feeAmount);
-  }
-
   function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts) {
     return UniswapV2Library.getAmountsOut(factory, amountIn, path);
-  }
-
-  function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts)
-  {
-    return UniswapV2Library.getAmountsIn(factory, amountOut, path);
   }
 }
