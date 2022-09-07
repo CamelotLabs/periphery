@@ -42,33 +42,13 @@ module.exports = {
       port: 8545,            // Standard BSC port (default: none)
       network_id: "*",       // Any network (default: none)
     },
-    avalancheLocal: {
-      provider: () => new HDWalletProvider(MNENOMIC, 'http://192.168.1.14:9650/ext/bc/C/rpc'),
-      network_id: "*",
+    arbitrum_testnet: {
+      provider: () => new HDWalletProvider(MNENOMIC, `https://goerli-rollup.arbitrum.io/rpc`),
+      network_id: 421613,
+      confirmations: 10,
       timeoutBlocks: 1200,
       skipDryRun: true,
-      from: process.env.DEPLOYER_ADDRESS.toString().trim(),
-    },
-    fuji: {
-      provider: () => new HDWalletProvider(MNENOMIC, 'https://api.avax-test.network/ext/bc/C/rpc'),
-      network_id: "*",
-      timeoutBlocks: 1200,
-      skipDryRun: true,
-      from: process.env.DEPLOYER_ADDRESS.toString().trim(),
-    },
-    ftmTestnet: {
-      provider: () => new HDWalletProvider(MNENOMIC, 'https://rpc.testnet.fantom.network/'),
-      network_id: "4002",
-      timeoutBlocks: 1200,
-      skipDryRun: true,
-      from: process.env.DEPLOYER_ADDRESS.toString().trim(),
-    },
-    ftm: {
-      provider: () => new HDWalletProvider(MNENOMIC, 'https://solitary-floral-pine.fantom.quiknode.pro/2190044bffc7c37cfd5695ef53401b1bde72724a/'),
-      network_id: "250",
-      timeoutBlocks: 1200,
-      skipDryRun: true,
-      from: process.env.DEPLOYER_ADDRESS.toString().trim(),
+      from: process.env.DEPLOYER_ADDRESS_TESTNET.toString().trim(),
     },
   },
 
@@ -98,7 +78,7 @@ module.exports = {
        settings: {          // See the solidity docs for advice about optimization and evmVersion
         optimizer: {
           enabled: true,
-          runs: 39999
+          runs: 99999
         }
       }
     }

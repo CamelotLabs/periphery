@@ -10,7 +10,6 @@ import './interfaces/IExcaliburRouter.sol';
 import './libraries/UniswapV2Library.sol';
 import './libraries/SafeMath.sol';
 import './interfaces/IWETH.sol';
-import "./interfaces/ISwapFeeRebate.sol";
 
 contract ExcaliburV2Router is IExcaliburRouter {
   using SafeMath for uint;
@@ -34,19 +33,11 @@ contract ExcaliburV2Router is IExcaliburRouter {
     factory = _factory;
     WETH = _WETH;
   }
-  receive() external payable {
-  }
+
+  receive() external payable {}
 
   function getPair(address token1, address token2) external view returns (address){
     return UniswapV2Library.pairFor(factory, token1, token2);
-  }
-
-  function isContract(address account) public view returns (bool){
-    uint size;
-    assembly {
-      size := extcodesize(account)
-    }
-    return size > 0;
   }
 
   // **** ADD LIQUIDITY ****
