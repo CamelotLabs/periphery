@@ -16,14 +16,6 @@ contract CamelotRouter is ICamelotRouter {
   address public immutable override factory;
   address public immutable override WETH;
 
-  uint private unlocked = 1;
-  modifier lock() {
-    require(unlocked == 1, 'CamelotRouter: LOCKED');
-    unlocked = 0;
-    _;
-    unlocked = 1;
-  }
-
   modifier ensure(uint deadline) {
     require(deadline >= block.timestamp, 'CamelotRouter: EXPIRED');
     _;
@@ -258,7 +250,7 @@ contract CamelotRouter is ICamelotRouter {
     address to,
     address referrer,
     uint deadline
-  ) external override lock ensure(deadline) {
+  ) external override ensure(deadline) {
     TransferHelper.safeTransferFrom(
       path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amountIn
     );
@@ -280,7 +272,7 @@ contract CamelotRouter is ICamelotRouter {
   external
   override
   payable
-  lock ensure(deadline)
+  ensure(deadline)
   {
     require(path[0] == WETH, 'CamelotRouter: INVALID_PATH');
     uint amountIn = msg.value;
@@ -305,7 +297,7 @@ contract CamelotRouter is ICamelotRouter {
   )
   external
   override
-  lock ensure(deadline)
+  ensure(deadline)
   {
     require(path[path.length - 1] == WETH, 'CamelotRouter: INVALID_PATH');
     TransferHelper.safeTransferFrom(
