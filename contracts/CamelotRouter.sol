@@ -2,30 +2,30 @@ pragma solidity =0.6.6;
 
 import '@uniswap/lib/contracts/libraries/TransferHelper.sol';
 
-import 'excalibur-core/contracts/interfaces/IExcaliburV2Factory.sol';
-import 'excalibur-core/contracts/interfaces/IExcaliburV2Pair.sol';
+import 'excalibur-core/contracts/interfaces/ICamelotFactory.sol';
+import 'excalibur-core/contracts/interfaces/ICamelotPair.sol';
 import 'excalibur-core/contracts/interfaces/IERC20.sol';
 
-import './interfaces/IExcaliburRouter.sol';
+import './interfaces/ICamelotRouter.sol';
 import './libraries/UniswapV2Library.sol';
 import './libraries/SafeMath.sol';
 import './interfaces/IWETH.sol';
 
-contract ExcaliburV2Router is IExcaliburRouter {
+contract CamelotRouter is ICamelotRouter {
   using SafeMath for uint;
   address public immutable override factory;
   address public immutable override WETH;
 
   uint private unlocked = 1;
   modifier lock() {
-    require(unlocked == 1, 'ExcaliburRouter: LOCKED');
+    require(unlocked == 1, 'CamelotRouter: LOCKED');
     unlocked = 0;
     _;
     unlocked = 1;
   }
 
   modifier ensure(uint deadline) {
-    require(deadline >= block.timestamp, 'ExcaliburRouter: EXPIRED');
+    require(deadline >= block.timestamp, 'CamelotRouter: EXPIRED');
     _;
   }
 
@@ -34,7 +34,9 @@ contract ExcaliburV2Router is IExcaliburRouter {
     WETH = _WETH;
   }
 
-  receive() external payable {}
+  receive() external payable {
+    assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
+  }
 
   function getPair(address token1, address token2) external view returns (address){
     return UniswapV2Library.pairFor(factory, token1, token2);
@@ -50,8 +52,8 @@ contract ExcaliburV2Router is IExcaliburRouter {
     uint amountBMin
   ) internal returns (uint amountA, uint amountB) {
     // create the pair if it doesn't exist yet
-    if (IExcaliburV2Factory(factory).getPair(tokenA, tokenB) == address(0)) {
-      IExcaliburV2Factory(factory).createPair(tokenA, tokenB);
+    if (ICamelotFactory(factory).getPair(tokenA, tokenB) == address(0)) {
+      ICamelotFactory(factory).createPair(tokenA, tokenB);
     }
     (uint reserveA, uint reserveB) = UniswapV2Library.getReserves(factory, tokenA, tokenB);
     if (reserveA == 0 && reserveB == 0) {
@@ -59,12 +61,12 @@ contract ExcaliburV2Router is IExcaliburRouter {
     } else {
       uint amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
       if (amountBOptimal <= amountBDesired) {
-        require(amountBOptimal >= amountBMin, 'ExcaliburRouter: INSUFFICIENT_B_AMOUNT');
+        require(amountBOptimal >= amountBMin, 'CamelotRouter: INSUFFICIENT_B_AMOUNT');
         (amountA, amountB) = (amountADesired, amountBOptimal);
       } else {
         uint amountAOptimal = UniswapV2Library.quote(amountBDesired, reserveB, reserveA);
         assert(amountAOptimal <= amountADesired);
-        require(amountAOptimal >= amountAMin, 'ExcaliburRouter: INSUFFICIENT_A_AMOUNT');
+        require(amountAOptimal >= amountAMin, 'CamelotRouter: INSUFFICIENT_A_AMOUNT');
         (amountA, amountB) = (amountAOptimal, amountBDesired);
       }
     }
@@ -84,7 +86,7 @@ contract ExcaliburV2Router is IExcaliburRouter {
     address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
     TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountA);
     TransferHelper.safeTransferFrom(tokenB, msg.sender, pair, amountB);
-    liquidity = IExcaliburV2Pair(pair).mint(to);
+    liquidity = ICamelotPair(pair).mint(to);
   }
 
   function addLiquidityETH(
@@ -107,7 +109,7 @@ contract ExcaliburV2Router is IExcaliburRouter {
     TransferHelper.safeTransferFrom(token, msg.sender, pair, amountToken);
     IWETH(WETH).deposit{value : amountETH}();
     assert(IWETH(WETH).transfer(pair, amountETH));
-    liquidity = IExcaliburV2Pair(pair).mint(to);
+    liquidity = ICamelotPair(pair).mint(to);
     // refund dust eth, if any
     if (msg.value > amountETH) TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
   }
@@ -123,13 +125,13 @@ contract ExcaliburV2Router is IExcaliburRouter {
     uint deadline
   ) public override ensure(deadline) returns (uint amountA, uint amountB) {
     address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
-    IExcaliburV2Pair(pair).transferFrom(msg.sender, pair, liquidity);
+    ICamelotPair(pair).transferFrom(msg.sender, pair, liquidity);
     // send liquidity to pair
-    (uint amount0, uint amount1) = IExcaliburV2Pair(pair).burn(to);
+    (uint amount0, uint amount1) = ICamelotPair(pair).burn(to);
     (address token0,) = UniswapV2Library.sortTokens(tokenA, tokenB);
     (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
-    require(amountA >= amountAMin, 'ExcaliburRouter: INSUFFICIENT_A_AMOUNT');
-    require(amountB >= amountBMin, 'ExcaliburRouter: INSUFFICIENT_B_AMOUNT');
+    require(amountA >= amountAMin, 'CamelotRouter: INSUFFICIENT_A_AMOUNT');
+    require(amountB >= amountBMin, 'CamelotRouter: INSUFFICIENT_B_AMOUNT');
   }
 
   function removeLiquidityETH(
@@ -166,7 +168,7 @@ contract ExcaliburV2Router is IExcaliburRouter {
   ) external override returns (uint amountA, uint amountB) {
     address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
     uint value = approveMax ? uint(- 1) : liquidity;
-    IExcaliburV2Pair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
+    ICamelotPair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
     (amountA, amountB) = removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
   }
 
@@ -181,7 +183,7 @@ contract ExcaliburV2Router is IExcaliburRouter {
   ) external override returns (uint amountToken, uint amountETH) {
     address pair = UniswapV2Library.pairFor(factory, token, WETH);
     uint value = approveMax ? uint(- 1) : liquidity;
-    IExcaliburV2Pair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
+    ICamelotPair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
     (amountToken, amountETH) = removeLiquidityETH(token, liquidity, amountTokenMin, amountETHMin, to, deadline);
   }
 
@@ -219,7 +221,7 @@ contract ExcaliburV2Router is IExcaliburRouter {
   ) external override returns (uint amountETH) {
     address pair = UniswapV2Library.pairFor(factory, token, WETH);
     uint value = approveMax ? uint(- 1) : liquidity;
-    IExcaliburV2Pair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
+    ICamelotPair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
     amountETH = removeLiquidityETHSupportingFeeOnTransferTokens(
       token, liquidity, amountTokenMin, amountETHMin, to, deadline
     );
@@ -233,7 +235,7 @@ contract ExcaliburV2Router is IExcaliburRouter {
     for (uint i; i < path.length - 1; i++) {
       (address input, address output) = (path[i], path[i + 1]);
       (address token0,) = UniswapV2Library.sortTokens(input, output);
-      IExcaliburV2Pair pair = IExcaliburV2Pair(UniswapV2Library.pairFor(factory, input, output));
+      ICamelotPair pair = ICamelotPair(UniswapV2Library.pairFor(factory, input, output));
       uint amountOutput;
       {// scope to avoid stack too deep errors
         (uint reserve0, uint reserve1,,) = pair.getReserves();
@@ -264,7 +266,7 @@ contract ExcaliburV2Router is IExcaliburRouter {
     _swapSupportingFeeOnTransferTokens(path, to, referrer);
     require(
       IERC20(path[path.length - 1]).balanceOf(to).sub(balanceBefore) >= amountOutMin,
-      'ExcaliburRouter: INSUFFICIENT_OUTPUT_AMOUNT'
+      'CamelotRouter: INSUFFICIENT_OUTPUT_AMOUNT'
     );
   }
 
@@ -280,7 +282,7 @@ contract ExcaliburV2Router is IExcaliburRouter {
   payable
   lock ensure(deadline)
   {
-    require(path[0] == WETH, 'ExcaliburRouter: INVALID_PATH');
+    require(path[0] == WETH, 'CamelotRouter: INVALID_PATH');
     uint amountIn = msg.value;
     IWETH(WETH).deposit{value : amountIn}();
     assert(IWETH(WETH).transfer(UniswapV2Library.pairFor(factory, path[0], path[1]), amountIn));
@@ -289,7 +291,7 @@ contract ExcaliburV2Router is IExcaliburRouter {
     _swapSupportingFeeOnTransferTokens(path, to, referrer);
     require(
       IERC20(path[path.length - 1]).balanceOf(to).sub(balanceBefore) >= amountOutMin,
-      'ExcaliburRouter: INSUFFICIENT_OUTPUT_AMOUNT'
+      'CamelotRouter: INSUFFICIENT_OUTPUT_AMOUNT'
     );
   }
 
@@ -305,13 +307,13 @@ contract ExcaliburV2Router is IExcaliburRouter {
   override
   lock ensure(deadline)
   {
-    require(path[path.length - 1] == WETH, 'ExcaliburRouter: INVALID_PATH');
+    require(path[path.length - 1] == WETH, 'CamelotRouter: INVALID_PATH');
     TransferHelper.safeTransferFrom(
       path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amountIn
     );
     _swapSupportingFeeOnTransferTokens(path, address(this), referrer);
     uint amountOut = IERC20(WETH).balanceOf(address(this));
-    require(amountOut >= amountOutMin, 'ExcaliburRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+    require(amountOut >= amountOutMin, 'CamelotRouter: INSUFFICIENT_OUTPUT_AMOUNT');
     IWETH(WETH).withdraw(amountOut);
     TransferHelper.safeTransferETH(to, amountOut);
   }

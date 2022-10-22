@@ -1,6 +1,6 @@
 pragma solidity =0.6.6;
 
-import '../interfaces/IExcaliburRouter.sol';
+import '../interfaces/ICamelotRouter.sol';
 
 contract RouterEventEmitter {
     event Amounts(uint[] amounts);
@@ -16,7 +16,7 @@ contract RouterEventEmitter {
         uint deadline
     ) external {
         (bool success, bytes memory returnData) = router.delegatecall(abi.encodeWithSelector(
-            IExcaliburRouter(router).swapExactTokensForTokensSupportingFeeOnTransferTokens.selector, amountIn, amountOutMin, path, to, address(0), false, deadline
+            ICamelotRouter(router).swapExactTokensForTokensSupportingFeeOnTransferTokens.selector, amountIn, amountOutMin, path, to, address(0), false, deadline
         ));
         assert(success);
         emit Amounts(abi.decode(returnData, (uint[])));
@@ -30,7 +30,7 @@ contract RouterEventEmitter {
         uint deadline
     ) external payable {
         (bool success, bytes memory returnData) = router.delegatecall(abi.encodeWithSelector(
-            IExcaliburRouter(router).swapExactETHForTokensSupportingFeeOnTransferTokens.selector, amountOutMin, path, to, address(0), false, deadline
+            ICamelotRouter(router).swapExactETHForTokensSupportingFeeOnTransferTokens.selector, amountOutMin, path, to, address(0), false, deadline
         ));
         assert(success);
         emit Amounts(abi.decode(returnData, (uint[])));
@@ -45,7 +45,7 @@ contract RouterEventEmitter {
         uint deadline
     ) external {
         (bool success, bytes memory returnData) = router.delegatecall(abi.encodeWithSelector(
-            IExcaliburRouter(router).swapExactTokensForETHSupportingFeeOnTransferTokens.selector, amountIn, amountOutMin, path, to, address(0), false, deadline
+            ICamelotRouter(router).swapExactTokensForETHSupportingFeeOnTransferTokens.selector, amountIn, amountOutMin, path, to, address(0), false, deadline
         ));
         assert(success);
         emit Amounts(abi.decode(returnData, (uint[])));

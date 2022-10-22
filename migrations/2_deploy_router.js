@@ -1,4 +1,4 @@
-const ExcaliburRouter = artifacts.require("ExcaliburV2Router");
+const CamelotRouter = artifacts.require("CamelotRouter");
 
 module.exports = async function (deployer, network, accounts) {
   let factoryAddress = process.env.FACTORY_ADDRESS.toString().trim();
@@ -8,5 +8,5 @@ module.exports = async function (deployer, network, accounts) {
     factoryAddress = process.env.FACTORY_ADDRESS_TESTNET.toString().trim();
     wethAddress = process.env.WETH_ADDRESS_TESTNET.toString().trim();
   }
-  await deployer.deploy(ExcaliburRouter, factoryAddress, wethAddress)
+  await deployer.deploy(CamelotRouter, factoryAddress, wethAddress)
 };

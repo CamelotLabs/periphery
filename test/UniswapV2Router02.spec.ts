@@ -3,7 +3,7 @@ import { solidity, MockProvider, createFixtureLoader, deployContract } from 'eth
 import { Contract } from 'ethers'
 import { BigNumber, bigNumberify } from 'ethers/utils'
 import { AddressZero, MaxUint256 } from 'ethers/constants'
-import IExcaliburV2Pair from 'excalibur-core/build/contracts/IExcaliburV2Pair.json'
+import ICamelotPair from 'excalibur-core/build/contracts/ICamelotPair.json'
 
 import { v2Fixture } from './shared/fixtures'
 import { expandTo18Decimals, getApprovalDigest, MINIMUM_LIQUIDITY } from './shared/utilities'
@@ -98,7 +98,7 @@ describe('fee-on-transfer tokens', () => {
     // make a DTT<>WETH pair
     await fixture.factoryV2.createPair(DTT.address, WETH.address)
     const pairAddress = await fixture.factoryV2.getPair(DTT.address, WETH.address)
-    pair = new Contract(pairAddress, JSON.stringify(IExcaliburV2Pair.abi), provider).connect(wallet)
+    pair = new Contract(pairAddress, JSON.stringify(ICamelotPair.abi), provider).connect(wallet)
   })
 
   afterEach(async function() {
