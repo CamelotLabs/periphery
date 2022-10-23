@@ -312,6 +312,7 @@ contract CamelotRouter is ICamelotRouter {
 
 
   // **** LIBRARY FUNCTIONS ****
+  // given some amount of an asset and pair reserves, returns the quote of the other asset's reserve ratio
   function quote(uint amountA, uint reserveA, uint reserveB) external pure override returns (uint amountB) {
     return UniswapV2Library.quote(amountA, reserveA, reserveB);
   }
