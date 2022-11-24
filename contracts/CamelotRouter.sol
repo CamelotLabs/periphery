@@ -235,6 +235,7 @@ contract CamelotRouter is ICamelotRouter {
         if (input != token0) (reserve0, reserve1) = (reserve1, reserve0);
         uint amountInput = IERC20(input).balanceOf(address(pair)).sub(reserve0);
         amountOutput = pair.getAmountOut(amountInput, input);
+        if(pair.stableSwap()) amountOutput = amountOutput.sub(100); // substract 100 wei to avoid rouding issue
       }
 
       (uint amount0Out, uint amount1Out) = input == token0 ? (uint(0), amountOutput) : (amountOutput, uint(0));

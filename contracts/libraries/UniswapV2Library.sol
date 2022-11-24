@@ -47,6 +47,7 @@ library UniswapV2Library {
         for (uint i; i < path.length - 1; i++) {
             ICamelotPair pair = ICamelotPair(pairFor(factory, path[i], path[i + 1]));
             amounts[i + 1] = pair.getAmountOut(amounts[i], path[i]);
+            if(pair.stableSwap()) amounts[i + 1] = amounts[i + 1].sub(100); // substract 100 wei to avoid rouding issue
         }
     }
 }
