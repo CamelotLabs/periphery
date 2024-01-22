@@ -3,12 +3,12 @@ import { solidity, MockProvider, createFixtureLoader, deployContract } from 'eth
 import { Contract } from 'ethers'
 import { BigNumber, bigNumberify } from 'ethers/utils'
 import { AddressZero, MaxUint256 } from 'ethers/constants'
-import ICamelotPair from 'excalibur-core/build/contracts/ICamelotPair.json'
+import ICamelotPair from 'camelot-ammv2-core/artifacts/contracts/interfaces/ICamelotPair.sol/ICamelotPair.json'
 
 import { v2Fixture } from './shared/fixtures'
 import { expandTo18Decimals, getApprovalDigest, MINIMUM_LIQUIDITY } from './shared/utilities'
 
-import DeflatingERC20 from '../build/contracts/DeflatingERC20.json'
+import DeflatingERC20 from '../artifacts/contracts/test/DeflatingERC20.sol/DeflatingERC20.json'
 import { ecsign } from 'ethereumjs-util'
 import { BigNumberish } from 'ethers/utils/bignumber'
 

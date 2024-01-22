@@ -2,7 +2,7 @@ pragma solidity >=0.5.0;
 
 import "./SafeMath.sol";
 
-import 'excalibur-core/contracts/interfaces/ICamelotPair.sol';
+import 'camelot-ammv2-core/contracts/interfaces/ICamelotPair.sol';
 
 library UniswapV2Library {
     using SafeMath for uint;
@@ -21,7 +21,7 @@ library UniswapV2Library {
                 hex'ff',
                 factory,
                 keccak256(abi.encodePacked(token0, token1)),
-                hex'a856464ae65f7619087bc369daaf7e387dae1e5af69cfa7935850ebf754b04c1' // init code hash
+                hex'd01dcfe13dff3376919d2743b3155c817452bcf4154817ee6096bbc9f7ea37ab' // init code hash
             ))));
     }
 

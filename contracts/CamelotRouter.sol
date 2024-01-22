@@ -2,9 +2,9 @@ pragma solidity =0.6.6;
 
 import '@uniswap/lib/contracts/libraries/TransferHelper.sol';
 
-import 'excalibur-core/contracts/interfaces/ICamelotFactory.sol';
-import 'excalibur-core/contracts/interfaces/ICamelotPair.sol';
-import 'excalibur-core/contracts/interfaces/IERC20.sol';
+import 'camelot-ammv2-core/contracts/interfaces/ICamelotFactory.sol';
+import 'camelot-ammv2-core/contracts/interfaces/ICamelotPair.sol';
+import 'camelot-ammv2-core/contracts/interfaces/IERC20.sol';
 
 import './interfaces/ICamelotRouter.sol';
 import './libraries/UniswapV2Library.sol';

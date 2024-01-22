@@ -4,14 +4,13 @@ import { deployContract } from 'ethereum-waffle'
 
 import { expandTo18Decimals } from './utilities'
 
-import CamelotFactory from 'excalibur-core/build/contracts/CamelotFactory.json'
-import Test from 'excalibur-core/build/contracts/Test.json'
-import ICamelotPair from 'excalibur-core/build/contracts/ICamelotPair.json'
+import CamelotFactory from 'camelot-ammv2-core/artifacts/contracts/CamelotFactory.sol/CamelotFactory.json'
+import ICamelotPair from 'camelot-ammv2-core/artifacts/contracts/interfaces/ICamelotPair.sol/ICamelotPair.json'
 
-import ERC20 from '../../build/contracts/ERC20.json'
-import WETH9 from '../../build/contracts/WETH9.json'
-import CamelotRouter from '../../build/contracts/CamelotRouter.json'
-import RouterEventEmitter from '../../build/contracts/RouterEventEmitter.json'
+import ERC20 from '../../artifacts/contracts/test/ERC20.sol/ERC20.json'
+import WETH9 from '../../artifacts/contracts/test/WETH9.sol/WETH9.json'
+import CamelotRouter from '../../artifacts/contracts/CamelotRouter.sol/CamelotRouter.json'
+import RouterEventEmitter from '../../artifacts/contracts/test/RouterEventEmitter.sol/RouterEventEmitter.json'
 import {zeroAddress} from "ethereumjs-util";
 
 const overrides = {
